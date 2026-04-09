@@ -39,6 +39,8 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "webmock",      ">= 3.19"
   spec.add_development_dependency "jwt",          ">= 2.7"
   spec.add_development_dependency "sqlite3",      ">= 1.7"
+  spec.add_development_dependency "sprockets-rails", ">= 3.4"
+  spec.add_development_dependency "sassc-rails",     ">= 2.1"
   spec.add_development_dependency "rake",         ">= 13.0"
   spec.add_development_dependency "rubocop",      ">= 1.60"
   spec.add_development_dependency "rubocop-rails", ">= 2.20"

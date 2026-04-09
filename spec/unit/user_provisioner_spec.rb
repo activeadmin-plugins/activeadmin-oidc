@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "spec_helper"
+require_relative "_active_record_setup"
 
 RSpec.describe ActiveAdmin::Oidc::UserProvisioner do
   let(:config) do
