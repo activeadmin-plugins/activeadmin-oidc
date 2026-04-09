@@ -4,7 +4,12 @@ source "https://rubygems.org"
 
 gemspec
 
-# Pin Rails for the dev/test environment. The gemspec allows >= 7.2 at
-# runtime, but the dummy app and specs are validated against 7.2.
-gem "rails", "~> 7.2.0"
-gem "activerecord", "~> 7.2.0"
+default_rails_version       = "7.2.0"
+default_activeadmin_version = "3.5.0"
+
+rails_version       = ENV.fetch("RAILS", default_rails_version)
+activeadmin_version = ENV.fetch("AA",    default_activeadmin_version)
+
+gem "rails",        "~> #{rails_version}"
+gem "activerecord", "~> #{rails_version}"
+gem "activeadmin",  "~> #{activeadmin_version}"

@@ -1,5 +1,7 @@
 # activeadmin-oidc
 
+[![CI](https://github.com/activeadmin-plugins/activeadmin-oidc/actions/workflows/ci.yml/badge.svg)](https://github.com/activeadmin-plugins/activeadmin-oidc/actions/workflows/ci.yml)
+
 OpenID Connect single sign-on for [ActiveAdmin](https://activeadmin.info/).
 
 Plugs OIDC into ActiveAdmin's existing Devise stack: JIT user provisioning, an `on_login` hook for host-owned authorization, a login-button view override, and a one-shot install generator. The OIDC protocol layer (discovery, JWKS, token verification, PKCE, nonce, state) is delegated to [`omniauth_openid_connect`](https://github.com/omniauth/omniauth_openid_connect).

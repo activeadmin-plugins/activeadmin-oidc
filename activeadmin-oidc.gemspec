@@ -16,7 +16,7 @@ Gem::Specification.new do |spec|
   spec.license  = "MIT"
   spec.homepage = "https://github.com/fedoronchuk/activeadmin-oidc"
 
-  spec.required_ruby_version = ">= 3.3.0"
+  spec.required_ruby_version = ">= 3.2.0"
 
   spec.files = Dir[
     "lib/**/*",

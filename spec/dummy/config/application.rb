@@ -23,7 +23,10 @@ require "activeadmin-oidc"
 
 module Dummy
   class Application < Rails::Application
-    config.load_defaults 7.2
+    # Pick the nearest Rails defaults for the Rails version that's
+    # currently resolved. The CI matrix exercises 7.2 and 8.0.
+    rails_gem_version = Gem::Version.new(Rails.version)
+    config.load_defaults(rails_gem_version >= Gem::Version.new("8.0") ? 8.0 : 7.2)
     config.eager_load = false
     config.root = File.expand_path("..", __dir__)
 
