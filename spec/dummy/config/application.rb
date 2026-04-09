@@ -32,8 +32,6 @@ module Dummy
 
     config.action_controller.allow_forgery_protection = false
     config.session_store :cookie_store, key: "_dummy_session"
-    config.middleware.use ActionDispatch::Cookies
-    config.middleware.use config.session_store, config.session_options
 
     config.action_dispatch.show_exceptions = :none
     config.consider_all_requests_local = true

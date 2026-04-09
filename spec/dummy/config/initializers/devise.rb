@@ -4,6 +4,10 @@ Devise.setup do |config|
   config.mailer_sender = "please-change-me@example.com"
   require "devise/orm/active_record"
 
+  # ActiveAdmin mounts Devise under /admin, so OmniAuth middleware must
+  # intercept /admin/auth/:provider instead of the default per-model prefix.
+  config.omniauth_path_prefix = "/admin/auth"
+
   config.case_insensitive_keys = [:email]
   config.strip_whitespace_keys = [:email]
   config.skip_session_storage = [:http_auth]
@@ -23,6 +27,7 @@ Devise.setup do |config|
 
   config.omniauth :openid_connect,
                   name:          :oidc,
+                  path_prefix:   "/admin/auth",
                   issuer:        "https://idp.example.com",
                   discovery:     false,
                   scope:         %i[openid email profile],

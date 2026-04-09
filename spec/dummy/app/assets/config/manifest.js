@@ -1,1 +1,2 @@
-// no assets needed for the dummy app
+//= link active_admin.css
+
