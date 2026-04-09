@@ -22,7 +22,6 @@ Gem::Specification.new do |spec|
     "lib/**/*",
     "app/**/*",
     "config/**/*",
-    "docs/**/*",
     "README.md",
     "LICENSE.txt"
   ]
