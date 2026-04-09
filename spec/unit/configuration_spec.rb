@@ -10,10 +10,6 @@ RSpec.describe ActiveAdmin::Oidc::Configuration do
       expect(config.scope).to eq("openid email profile")
     end
 
-    it "has a default clock_skew of 30 seconds" do
-      expect(config.clock_skew).to eq(30)
-    end
-
     it "has a default timeout of 5 seconds" do
       expect(config.timeout).to eq(5)
     end
@@ -162,7 +158,6 @@ RSpec.describe ActiveAdmin::Oidc::Configuration do
       config.client_secret       = "sec"
       config.scope               = "openid email"
       config.login_button_label  = "Sign in"
-      config.clock_skew          = 60
       config.timeout             = 10
       config.identity_attribute  = :username
       config.identity_claim      = :preferred_username
@@ -175,7 +170,6 @@ RSpec.describe ActiveAdmin::Oidc::Configuration do
       expect(config.client_secret).to        eq("sec")
       expect(config.scope).to                eq("openid email")
       expect(config.login_button_label).to   eq("Sign in")
-      expect(config.clock_skew).to           eq(60)
       expect(config.timeout).to              eq(10)
       expect(config.identity_attribute).to   eq(:username)
       expect(config.identity_claim).to       eq(:preferred_username)

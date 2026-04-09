@@ -22,7 +22,6 @@ module ActiveAdmin
   module Oidc
     class Error < StandardError; end
     class ConfigurationError < Error; end
-    class DiscoveryError < Error; end
     class ProvisioningError < Error; end
 
     class << self
@@ -43,17 +42,7 @@ module ActiveAdmin
 end
 
 require "activeadmin/oidc/configuration"
-require "activeadmin/oidc/discovery"
 require "activeadmin/oidc/presets/zitadel"
 require "activeadmin/oidc/user_provisioner"
 require "rails/engine"
 require "activeadmin/oidc/engine"
-require "activeadmin/oidc/omniauth_options"
-
-module ActiveAdmin
-  module Oidc
-    def self.omniauth_options
-      OmniauthOptions.build(config)
-    end
-  end
-end

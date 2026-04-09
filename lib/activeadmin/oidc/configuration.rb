@@ -4,7 +4,6 @@ module ActiveAdmin
   module Oidc
     class Configuration
       DEFAULT_SCOPE               = "openid email profile"
-      DEFAULT_CLOCK_SKEW          = 30
       DEFAULT_TIMEOUT             = 5
       DEFAULT_IDENTITY_ATTRIBUTE  = :email
       DEFAULT_IDENTITY_CLAIM      = :email
@@ -13,7 +12,7 @@ module ActiveAdmin
         "Your account has no permission to access this admin panel."
 
       attr_accessor :issuer, :client_id, :client_secret, :scope,
-                    :login_button_label, :clock_skew, :timeout,
+                    :login_button_label, :timeout,
                     :identity_attribute, :identity_claim,
                     :access_denied_message, :on_login
 
@@ -27,7 +26,6 @@ module ActiveAdmin
         @client_secret         = nil
         @scope                 = DEFAULT_SCOPE
         @login_button_label    = DEFAULT_LOGIN_BUTTON_LABEL
-        @clock_skew            = DEFAULT_CLOCK_SKEW
         @timeout               = DEFAULT_TIMEOUT
         @identity_attribute    = DEFAULT_IDENTITY_ATTRIBUTE
         @identity_claim        = DEFAULT_IDENTITY_CLAIM
