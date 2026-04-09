@@ -40,6 +40,18 @@ module ActiveAdmin
           end
         end
       end
+
+      # Make sure the gem's login view override wins over ActiveAdmin's
+      # default. ActiveAdmin's view path is registered when its engine
+      # initializes; we prepend ours in `to_prepare` so it lands in front
+      # of ActiveAdmin's Devise::SessionsController view lookup.
+      initializer "activeadmin_oidc.prepend_view_paths" do |app|
+        app.config.to_prepare do
+          require "active_admin/devise"
+          view_path = File.expand_path("../../../app/views", __dir__)
+          ::ActiveAdmin::Devise::SessionsController.prepend_view_path(view_path)
+        end
+      end
     end
   end
 end
