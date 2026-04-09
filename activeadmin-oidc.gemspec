@@ -27,7 +27,7 @@ Gem::Specification.new do |spec|
   ]
   spec.require_paths = ["lib"]
 
-  spec.add_dependency "activeadmin",            ">= 3.5"
+  spec.add_dependency "activeadmin",            ">= 3.5", "< 4"
   spec.add_dependency "devise",                 ">= 4.9"
   spec.add_dependency "omniauth",               ">= 2.1"
   spec.add_dependency "omniauth-rails_csrf_protection", ">= 1.0"
