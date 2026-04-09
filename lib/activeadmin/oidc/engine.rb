@@ -52,6 +52,15 @@ module ActiveAdmin
           ::ActiveAdmin::Devise::SessionsController.prepend_view_path(view_path)
         end
       end
+
+      # Prevent OAuth codes and tokens from ever landing in Rails logs.
+      # If the host app crashes mid-callback Rails will dump the full
+      # params hash into the log; we merge the known-sensitive keys
+      # into `filter_parameters` so they come out as [FILTERED]. The
+      # host app's own filter_parameters are preserved — we only add.
+      initializer "activeadmin_oidc.filter_parameters" do |app|
+        app.config.filter_parameters |= %i[code id_token access_token refresh_token]
+      end
     end
   end
 end
