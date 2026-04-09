@@ -16,7 +16,10 @@ jobs:
       matrix:
         ruby: ['3.2', '3.3', '3.4']
         rails: ['7.2.0', '8.0.0']
-        activeadmin: ['3.4.0', '3.5.0']
+        activeadmin: ['3.5.0']
+        # AA 3.4.0 is excluded: it pins devise < 5, which is
+        # incompatible with the devise >= 4.9 floor this gem needs.
+        # Support starts at ActiveAdmin 3.5, which lifted that cap.
     env:
       RAILS: ${{ matrix.rails }}
       AA: ${{ matrix.activeadmin }}
