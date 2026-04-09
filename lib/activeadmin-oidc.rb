@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "logger"
 require "activeadmin/oidc/version"
 
 # `omniauth-rails_csrf_protection` registers a Railtie that replaces
@@ -34,8 +35,30 @@ module ActiveAdmin
         config
       end
 
+      # Logger the gem uses for internal diagnostics (on_login hook
+      # failures, omniauth failures, etc). Defaults to Rails.logger when
+      # Rails is booted, falls back to a null logger otherwise so that
+      # library code is safe to call in non-Rails contexts (unit specs,
+      # scripts). Override by assigning directly — useful in tests.
+      def logger
+        @logger || default_logger
+      end
+
+      attr_writer :logger
+
       def reset!
         @config = Configuration.new
+        @logger = nil
+      end
+
+      private
+
+      def default_logger
+        if defined?(::Rails) && ::Rails.respond_to?(:logger) && ::Rails.logger
+          ::Rails.logger
+        else
+          @null_logger ||= ::Logger.new(IO::NULL)
+        end
       end
     end
   end

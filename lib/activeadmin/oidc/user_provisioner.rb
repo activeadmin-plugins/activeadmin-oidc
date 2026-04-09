@@ -37,7 +37,7 @@ module ActiveAdmin
         admin_user = find_or_adopt_or_build
         assign_base_attributes(admin_user)
 
-        allowed = @config.on_login.call(admin_user, @claims)
+        allowed = invoke_on_login(admin_user)
         raise ProvisioningError, denial_message unless allowed
 
         save!(admin_user)
@@ -105,6 +105,25 @@ module ActiveAdmin
         admin_user.save!
       rescue ActiveRecord::RecordInvalid, ActiveRecord::RecordNotUnique => e
         raise ProvisioningError, e.message
+      end
+
+      # The on_login hook is host-app code. If it raises a non-gem
+      # exception, we do NOT want the callback action to blow up with
+      # a 500 — the cleanest UX is the same generic denial flash the
+      # "hook returned false" path produces. We still log the original
+      # exception class + message at error level so ops can debug.
+      # Gem-internal exceptions (ActiveAdmin::Oidc::Error subclasses)
+      # are re-raised untouched so nested provisioning errors surface
+      # with their original messages.
+      def invoke_on_login(admin_user)
+        @config.on_login.call(admin_user, @claims)
+      rescue ActiveAdmin::Oidc::Error
+        raise
+      rescue StandardError => e
+        ActiveAdmin::Oidc.logger.error(
+          "[activeadmin-oidc] on_login hook raised #{e.class}: #{e.message}"
+        )
+        raise ProvisioningError, denial_message
       end
 
       def denial_message

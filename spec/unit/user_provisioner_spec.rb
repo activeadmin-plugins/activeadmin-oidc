@@ -141,9 +141,28 @@ RSpec.describe ActiveAdmin::Oidc::UserProvisioner do
       expect(existing.reload.email).to eq("old@example.com")
     end
 
-    it "propagates unrelated exceptions from the hook" do
+    it "converts unrelated exceptions from the hook into a ProvisioningError (generic denial)" do
+      # The on_login hook is host-app code. If it raises anything, the
+      # ideal UX is a clean denial flash (identical to the "false" case),
+      # not a 500 crash on the callback action. The original exception
+      # is logged for ops visibility; see next example.
       config.on_login = ->(_a, _c) { raise "boom" }
-      expect { provisioner.call }.to raise_error(RuntimeError, "boom")
+      expect { provisioner.call }.to raise_error(ActiveAdmin::Oidc::ProvisioningError)
+    end
+
+    it "logs the original exception class and message when the hook raises" do
+      config.on_login = ->(_a, _c) { raise ArgumentError, "bad claim shape" }
+      fake_logger = instance_double(Logger, error: nil)
+      allow(ActiveAdmin::Oidc).to receive(:logger).and_return(fake_logger)
+      provisioner.call rescue nil
+      expect(fake_logger).to have_received(:error).with(/on_login.*ArgumentError.*bad claim shape/)
+    end
+
+    it "does not swallow ActiveAdmin::Oidc::Error subclasses raised by the hook" do
+      # If host code explicitly raises a gem-internal error (e.g. from
+      # a nested provisioner), don't double-wrap it — let it surface.
+      config.on_login = ->(_a, _c) { raise ActiveAdmin::Oidc::ProvisioningError, "nested denial" }
+      expect { provisioner.call }.to raise_error(ActiveAdmin::Oidc::ProvisioningError, "nested denial")
     end
   end
 
