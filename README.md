@@ -6,7 +6,7 @@ OpenID Connect single sign-on for [ActiveAdmin](https://activeadmin.info/).
 
 Plugs OIDC into ActiveAdmin's existing Devise stack: JIT user provisioning, an `on_login` hook for host-owned authorization, a login-button view override, and a one-shot install generator. The OIDC protocol layer (discovery, JWKS, token verification, PKCE, nonce, state) is delegated to [`omniauth_openid_connect`](https://github.com/omniauth/omniauth_openid_connect).
 
-Used in production by the authors against [Zitadel](https://zitadel.com/); the `:zitadel` preset below covers that wiring. Other compliant OIDC providers work via the standard omniauth_openid_connect options.
+Used in production by the authors against [Zitadel](https://zitadel.com/). Other compliant OIDC providers work via the standard omniauth_openid_connect options.
 
 ## Installation
 
@@ -66,10 +66,6 @@ ActiveAdmin::Oidc.configure do |c|
   c.issuer        = ENV.fetch("OIDC_ISSUER")
   c.client_id     = ENV.fetch("OIDC_CLIENT_ID")
   c.client_secret = ENV.fetch("OIDC_CLIENT_SECRET", nil) # blank ⇒ PKCE public client
-
-  # --- Optional transport-layer preset ----------------------------------
-  # Sets scope and enables PKCE automatically when no client_secret is set.
-  # c.preset :zitadel
 
   # --- OIDC scopes ------------------------------------------------------
   # c.scope = "openid email profile"

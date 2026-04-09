@@ -6,12 +6,12 @@ Gem::Specification.new do |spec|
   spec.name        = "activeadmin-oidc"
   spec.version     = ActiveAdmin::Oidc::VERSION
   spec.authors     = ["Igor Fedoronchuk"]
-  spec.summary     = "OpenID Connect SSO for ActiveAdmin with a Zitadel preset"
+  spec.summary     = "OpenID Connect SSO for ActiveAdmin"
   spec.description = <<~DESC
     activeadmin-oidc plugs generic OpenID Connect single sign-on into ActiveAdmin.
     It builds on Devise + omniauth_openid_connect and adds JIT user provisioning,
-    role mapping from provider claims, a Zitadel preset, and a single install
-    generator that wires everything up.
+    role mapping from provider claims via a host-owned on_login hook, and a
+    single install generator that wires everything up.
   DESC
   spec.license  = "MIT"
   spec.homepage = "https://github.com/fedoronchuk/activeadmin-oidc"

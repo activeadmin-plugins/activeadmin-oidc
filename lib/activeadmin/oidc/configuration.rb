@@ -47,16 +47,6 @@ module ActiveAdmin
         @pkce_override = value
       end
 
-      def preset(name)
-        case name
-        when :zitadel
-          require "activeadmin/oidc/presets/zitadel"
-          Presets::Zitadel.apply(self)
-        else
-          raise ConfigurationError, "Unknown preset: #{name.inspect}"
-        end
-      end
-
       def validate!
         raise ConfigurationError, "issuer is required"    if issuer.blank?
         raise ConfigurationError, "client_id is required" if client_id.blank?

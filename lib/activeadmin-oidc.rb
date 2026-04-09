@@ -66,7 +66,6 @@ module ActiveAdmin
 end
 
 require "activeadmin/oidc/configuration"
-require "activeadmin/oidc/presets/zitadel"
 require "activeadmin/oidc/user_provisioner"
 require "rails/engine"
 require "activeadmin/oidc/engine"

@@ -10,9 +10,9 @@ require "generators/active_admin/oidc/install/install_generator"
 #   bin/rails generate active_admin:oidc:install
 #
 # It must produce a working, editable starting point — initializer with
-# a commented-out Zitadel preset and sample `on_login` snippets, a
-# migration adding `provider`/`uid`/`oidc_raw_info` + a unique index to
-# `admin_users`, and a published login view override. It must be
+# sample `on_login` snippets, a migration adding
+# `provider`/`uid`/`oidc_raw_info` + a unique index to `admin_users`,
+# and a published login view override. It must be
 # idempotent (running twice does nothing bad) and refuse to run if the
 # host app doesn't have `AdminUser` or `devise`/`activeadmin`.
 RSpec.describe ActiveAdmin::Oidc::Generators::InstallGenerator do
@@ -83,10 +83,6 @@ RSpec.describe ActiveAdmin::Oidc::Generators::InstallGenerator do
 
     it "contains an ActiveAdmin::Oidc.configure block" do
       expect(initializer).to include("ActiveAdmin::Oidc.configure do |c|")
-    end
-
-    it "includes a commented-out Zitadel preset line" do
-      expect(initializer).to match(/^\s*#\s*c\.preset\s+:zitadel/)
     end
 
     it "includes commented-out ENV reads for issuer/client_id/client_secret" do

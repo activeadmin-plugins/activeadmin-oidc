@@ -139,22 +139,6 @@ RSpec.describe ActiveAdmin::Oidc::Configuration do
     end
   end
 
-  describe "#preset" do
-    it "applies the :zitadel preset without clobbering user-set values" do
-      config.issuer    = "https://zitadel.example.com"
-      config.client_id = "abc"
-      config.scope     = "openid custom"
-      config.preset :zitadel
-      expect(config.issuer).to eq("https://zitadel.example.com")
-      expect(config.client_id).to eq("abc")
-      expect(config.scope).to eq("openid custom")
-    end
-
-    it "raises for an unknown preset" do
-      expect { config.preset :unknown }.to raise_error(ActiveAdmin::Oidc::ConfigurationError, /unknown/i)
-    end
-  end
-
   describe "accessors" do
     it "round-trips all documented accessors" do
       config.issuer              = "https://example.com"

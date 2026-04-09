@@ -6,11 +6,6 @@
 # Uncomment and fill in the values for your identity provider.
 
 ActiveAdmin::Oidc.configure do |c|
-  # --- Transport-layer defaults for Zitadel ---------------------------
-  # Sets `scope = "openid email profile"` and enables PKCE automatically
-  # when no client_secret is configured (public-client mode).
-  # c.preset :zitadel
-
   # --- Provider ---------------------------------------------------------
   # c.issuer        = ENV.fetch("OIDC_ISSUER")
   # c.client_id     = ENV.fetch("OIDC_CLIENT_ID")
