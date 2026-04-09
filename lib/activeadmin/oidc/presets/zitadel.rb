@@ -8,12 +8,8 @@ module ActiveAdmin
 
         def self.apply(config)
           config.scope = DEFAULT_SCOPE if config.scope == Configuration::DEFAULT_SCOPE
-          config.pkce  = true if blank?(config.client_secret) && config.instance_variable_get(:@pkce_override).nil?
+          config.pkce  = true if config.client_secret.blank? && config.instance_variable_get(:@pkce_override).nil?
           config
-        end
-
-        def self.blank?(value)
-          value.nil? || value.to_s.strip.empty?
         end
       end
     end

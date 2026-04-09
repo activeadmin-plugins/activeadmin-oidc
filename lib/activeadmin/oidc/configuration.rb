@@ -56,20 +56,14 @@ module ActiveAdmin
       end
 
       def validate!
-        raise ConfigurationError, "issuer is required"    if blank?(issuer)
-        raise ConfigurationError, "client_id is required" if blank?(client_id)
+        raise ConfigurationError, "issuer is required"    if issuer.blank?
+        raise ConfigurationError, "client_id is required" if client_id.blank?
         raise ConfigurationError, "on_login is required"  if on_login.nil?
         unless on_login.respond_to?(:call)
           raise ConfigurationError, "on_login must be callable (respond to #call)"
         end
 
         true
-      end
-
-      private
-
-      def blank?(value)
-        value.nil? || value.to_s.strip.empty?
       end
     end
   end

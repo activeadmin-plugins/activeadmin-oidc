@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "logger"
+require "active_support/core_ext/object/blank"
 require "activeadmin/oidc/version"
 
 # `omniauth-rails_csrf_protection` registers a Railtie that replaces

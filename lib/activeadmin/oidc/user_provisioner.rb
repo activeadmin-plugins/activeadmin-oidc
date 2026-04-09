@@ -58,12 +58,12 @@ module ActiveAdmin
       end
 
       def validate_claims!
-        if blank?(@claims["sub"])
+        if @claims["sub"].blank?
           raise ProvisioningError, "OIDC id_token is missing a sub claim"
         end
 
         claim_key = @config.identity_claim.to_s
-        if blank?(@claims[claim_key])
+        if @claims[claim_key].blank?
           raise ProvisioningError,
                 "OIDC id_token is missing identity claim #{claim_key.inspect}"
         end
@@ -128,10 +128,6 @@ module ActiveAdmin
 
       def denial_message
         @config.access_denied_message
-      end
-
-      def blank?(value)
-        value.nil? || value.to_s.strip.empty?
       end
     end
   end
