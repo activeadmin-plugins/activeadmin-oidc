@@ -45,6 +45,18 @@ module ActiveAdmin
           flash[:alert] = ActiveAdmin::Oidc.config.access_denied_message
           redirect_to after_omniauth_failure_path_for(resource_name)
         end
+
+        private
+
+        # Land on the ActiveAdmin namespace root after a successful SSO
+        # sign-in instead of Devise's default (host app root). Hosts
+        # that don't define a `/` route would otherwise hit a routing
+        # error immediately after login, and even when `/` does exist
+        # it's rarely what an admin user wants to see. ActiveAdmin
+        # always mounts at `/admin`, so we go there directly.
+        def after_sign_in_path_for(resource)
+          stored_location_for(resource) || "/admin"
+        end
       end
     end
   end

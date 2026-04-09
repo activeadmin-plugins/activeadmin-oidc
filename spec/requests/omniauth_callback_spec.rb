@@ -57,9 +57,18 @@ RSpec.describe "OIDC callback", type: :request do
       expect(user.email).to eq("new@example.com")
       expect(user.oidc_raw_info).to include("sub" => "sub-new", "email" => "new@example.com")
 
-      # Devise's default is the app root; the dummy app redirects `/` to /admin.
       expect(response).to be_redirect
-      expect(response.location).to match(%r{\Ahttps?://[^/]+/(\z|admin)})
+    end
+
+    it "redirects directly to the ActiveAdmin namespace root, not the host app's /" do
+      OmniAuth.config.mock_auth[:oidc] =
+        build_auth_hash(uid: "sub-new", email: "new@example.com")
+
+      post "/admin/auth/oidc"
+      follow_redirect! # OmniAuth request phase -> callback
+      # `response` is now whatever the callbacks controller redirected to.
+      expect(response).to be_redirect
+      expect(URI(response.location).path).to eq("/admin")
     end
   end
 
