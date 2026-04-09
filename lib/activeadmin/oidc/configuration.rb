@@ -8,13 +8,14 @@ module ActiveAdmin
       DEFAULT_IDENTITY_ATTRIBUTE  = :email
       DEFAULT_IDENTITY_CLAIM      = :email
       DEFAULT_LOGIN_BUTTON_LABEL  = "Sign in with SSO"
+      DEFAULT_ADMIN_USER_CLASS    = "AdminUser"
       DEFAULT_ACCESS_DENIED_MESSAGE =
         "Your account has no permission to access this admin panel."
 
       attr_accessor :issuer, :client_id, :client_secret, :scope,
                     :login_button_label, :timeout,
                     :identity_attribute, :identity_claim,
-                    :access_denied_message, :on_login
+                    :access_denied_message, :on_login, :admin_user_class
 
       def initialize
         reset!
@@ -30,6 +31,7 @@ module ActiveAdmin
         @identity_attribute    = DEFAULT_IDENTITY_ATTRIBUTE
         @identity_claim        = DEFAULT_IDENTITY_CLAIM
         @access_denied_message = DEFAULT_ACCESS_DENIED_MESSAGE
+        @admin_user_class      = DEFAULT_ADMIN_USER_CLASS
         @on_login              = nil
         @pkce_override         = nil
         self

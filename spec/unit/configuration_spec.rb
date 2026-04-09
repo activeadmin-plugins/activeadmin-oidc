@@ -32,6 +32,10 @@ RSpec.describe ActiveAdmin::Oidc::Configuration do
       expect(config.access_denied_message).to match(/permission/i)
     end
 
+    it "defaults admin_user_class to the string 'AdminUser'" do
+      expect(config.admin_user_class).to eq("AdminUser")
+    end
+
     it "has no issuer by default" do
       expect(config.issuer).to be_nil
     end

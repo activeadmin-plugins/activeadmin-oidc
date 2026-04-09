@@ -188,6 +188,22 @@ RSpec.describe ActiveAdmin::Oidc::UserProvisioner do
     end
   end
 
+  describe "admin_user_class configuration" do
+    it "defaults to looking up the AdminUser constant" do
+      expect { provisioner.call }.to change(AdminUser, :count).by(1)
+    end
+
+    it "accepts a Class reference directly" do
+      config.admin_user_class = AdminUser
+      expect { provisioner.call }.to change(AdminUser, :count).by(1)
+    end
+
+    it "accepts a String class name for lazy resolution" do
+      config.admin_user_class = "AdminUser"
+      expect { provisioner.call }.to change(AdminUser, :count).by(1)
+    end
+  end
+
   describe "concurrent first-login race" do
     it "results in exactly one AdminUser for a given (provider, uid)" do
       # Simulate two callbacks racing: both see no existing row, both try to

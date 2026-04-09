@@ -47,14 +47,12 @@ module ActiveAdmin
       private
 
       def model
-        @model ||= admin_user_class
+        @model ||= resolve_admin_user_class
       end
 
-      def admin_user_class
-        klass_name = @config.respond_to?(:admin_user_class) && @config.admin_user_class
-        return klass_name if klass_name.is_a?(Class)
-
-        Object.const_get(klass_name || "AdminUser")
+      def resolve_admin_user_class
+        value = @config.admin_user_class
+        value.is_a?(Class) ? value : Object.const_get(value)
       end
 
       def validate_claims!
