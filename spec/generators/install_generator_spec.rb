@@ -54,15 +54,18 @@ RSpec.describe ActiveAdmin::Oidc::Generators::InstallGenerator do
     # Instantiate directly rather than going through `start` so that
     # `Thor::Error` raised in preflight propagates to the spec instead
     # of being caught by Thor's CLI wrapper. Redirect $stdout so the
-    # "create file" log lines don't pollute rspec output.
+    # "create file" log lines don't pollute rspec output, but capture
+    # it so tests can assert on warnings and next-steps output.
     generator = described_class.new(args, [], destination_root: destination_root)
     orig_stdout = $stdout
-    $stdout = StringIO.new
+    captured = StringIO.new
+    $stdout = captured
     begin
       generator.invoke_all
     ensure
       $stdout = orig_stdout
     end
+    captured.string
   end
 
   describe "initializer" do
@@ -188,6 +191,87 @@ RSpec.describe ActiveAdmin::Oidc::Generators::InstallGenerator do
       )
 
       expect { run_generator }.to raise_error(Thor::Error, /activeadmin/)
+    end
+  end
+
+  describe "warnings for AdminUser devise setup" do
+    # These are soft checks: the generator still runs to completion,
+    # but prints a warning pointing the user at the missing wiring.
+    # Hard-failing would be too aggressive — the user may be mid-refactor
+    # and know what they're doing.
+
+    it "warns when AdminUser does not include :omniauthable" do
+      File.write(
+        File.join(destination_root, "app/models/admin_user.rb"),
+        <<~RUBY
+          class AdminUser < ApplicationRecord
+            devise :database_authenticatable, :rememberable
+          end
+        RUBY
+      )
+
+      output = run_generator
+      expect(output).to match(/:omniauthable/)
+      expect(output).to match(/admin_user\.rb/i)
+    end
+
+    it "warns when AdminUser does not declare omniauth_providers: [:oidc]" do
+      File.write(
+        File.join(destination_root, "app/models/admin_user.rb"),
+        <<~RUBY
+          class AdminUser < ApplicationRecord
+            devise :database_authenticatable, :omniauthable
+          end
+        RUBY
+      )
+
+      output = run_generator
+      expect(output).to match(/omniauth_providers.*:oidc/)
+    end
+
+    it "does NOT warn when AdminUser is already wired for oidc omniauth" do
+      File.write(
+        File.join(destination_root, "app/models/admin_user.rb"),
+        <<~RUBY
+          class AdminUser < ApplicationRecord
+            devise :database_authenticatable,
+                   :omniauthable, omniauth_providers: [:oidc]
+          end
+        RUBY
+      )
+
+      output = run_generator
+      expect(output).not_to match(/warning.*omniauthable/i)
+      expect(output).not_to match(/warning.*omniauth_providers/i)
+    end
+  end
+
+  describe "post-install next-steps message" do
+    it "prints a next-steps section after a successful run" do
+      output = run_generator
+      expect(output).to match(/next steps/i)
+    end
+
+    it "reminds the host to uncomment authentication_method in active_admin.rb" do
+      output = run_generator
+      expect(output).to include("authentication_method")
+      expect(output).to include(":authenticate_admin_user!")
+    end
+
+    it "reminds the host to uncomment current_user_method in active_admin.rb" do
+      output = run_generator
+      expect(output).to include("current_user_method")
+      expect(output).to include(":current_admin_user")
+    end
+
+    it "reminds the host to run the generated migration" do
+      output = run_generator
+      expect(output).to match(/db:migrate|rails\s+db:migrate/)
+    end
+
+    it "reminds the host to set AdminUser :omniauthable with omniauth_providers: [:oidc]" do
+      output = run_generator
+      expect(output).to include("omniauth_providers: [:oidc]")
     end
   end
 end
