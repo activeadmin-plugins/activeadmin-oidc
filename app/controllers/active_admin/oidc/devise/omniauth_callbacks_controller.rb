@@ -18,9 +18,15 @@ module ActiveAdmin
       # (`:oidc`, from ActiveAdmin::Oidc::Engine::PROVIDER_NAME).
       class OmniauthCallbacksController < ::Devise::OmniauthCallbacksController
         def oidc
-          auth   = request.env["omniauth.auth"] || {}
-          info   = auth["info"] || {}
-          extra  = auth.dig("extra", "raw_info") || {}
+          auth  = request.env["omniauth.auth"] || {}
+          info  = auth["info"] || {}
+          # Defensive: an OIDC strategy is supposed to put a Hash at
+          # extra.raw_info, but a misbehaving/custom strategy could
+          # set something else (String, nil, Array). We only trust a
+          # Hash-shaped value; anything else collapses to {} and we
+          # rebuild `sub`/`email` from the top-level auth hash below.
+          extra = auth.dig("extra", "raw_info")
+          extra = {} unless extra.is_a?(Hash)
 
           claims = extra.to_h.transform_keys(&:to_s)
           claims["sub"]   = auth["uid"] if claims["sub"].blank? && auth["uid"].present?

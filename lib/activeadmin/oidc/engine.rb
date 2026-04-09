@@ -53,13 +53,18 @@ module ActiveAdmin
         end
       end
 
-      # Prevent OAuth codes and tokens from ever landing in Rails logs.
-      # If the host app crashes mid-callback Rails will dump the full
-      # params hash into the log; we merge the known-sensitive keys
-      # into `filter_parameters` so they come out as [FILTERED]. The
-      # host app's own filter_parameters are preserved — we only add.
+      # Prevent OAuth codes, tokens and CSRF/replay guards from ever
+      # landing in Rails logs. If the host app crashes mid-callback
+      # Rails will dump the full params hash into the log; we merge
+      # the known-sensitive keys into `filter_parameters` so they
+      # come out as [FILTERED]. The host app's own filter_parameters
+      # are preserved — we only add.
+      #
+      # `state` and `nonce` aren't "secret" in the strong sense, but
+      # they're single-use session-bound values and treating them as
+      # opaque in logs is the industry default.
       initializer "activeadmin_oidc.filter_parameters" do |app|
-        app.config.filter_parameters |= %i[code id_token access_token refresh_token]
+        app.config.filter_parameters |= %i[code id_token access_token refresh_token state nonce]
       end
     end
   end

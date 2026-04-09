@@ -19,10 +19,10 @@ RSpec.describe "Security posture", type: :request do
     #   "(?-mix:(?i:code)|(?i:id_token)|(?i:access_token)|...)"
     # ), so we stringify the collection and look for each key in it
     # rather than asserting on discrete symbol entries.
-    it "includes the OIDC token/code keys so they never end up in Rails logs" do
+    it "includes the OIDC token/code/state/nonce keys so they never end up in Rails logs" do
       filters_str = Rails.application.config.filter_parameters.map(&:to_s).join(" ")
 
-      %w[code id_token access_token refresh_token].each do |key|
+      %w[code id_token access_token refresh_token state nonce].each do |key|
         expect(filters_str).to include(key),
           "expected filter_parameters to filter #{key.inspect}, got: #{filters_str}"
       end

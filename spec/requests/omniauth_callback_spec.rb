@@ -127,6 +127,28 @@ RSpec.describe "OIDC callback", type: :request do
     end
   end
 
+  context "misbehaving strategy returns non-Hash raw_info" do
+    # Defensive: a custom or buggy OIDC strategy could set
+    # auth.extra.raw_info to a String (or nil, Array, etc) instead of
+    # the expected Hash of claims. The controller must not crash with
+    # a NoMethodError/TypeError — it should fall back to building
+    # claims from auth.uid and auth.info["email"] and proceed normally.
+    it "falls back to top-level auth fields and still provisions the user" do
+      OmniAuth.config.mock_auth[:oidc] = OmniAuth::AuthHash.new(
+        provider: "oidc",
+        uid:      "sub-nohash",
+        info:     { "email" => "nohash@example.com", "name" => "No Hash" },
+        extra:    { "raw_info" => "this-should-be-a-hash-but-isnt" }
+      )
+
+      expect { trigger_callback }.to change(AdminUser, :count).by(1)
+
+      user = AdminUser.find_by(provider: "oidc", uid: "sub-nohash")
+      expect(user).not_to be_nil
+      expect(user.email).to eq("nohash@example.com")
+    end
+  end
+
   context "OmniAuth strategy failure (e.g. invalid_credentials)" do
     before do
       OmniAuth.config.mock_auth[:oidc] = :invalid_credentials
