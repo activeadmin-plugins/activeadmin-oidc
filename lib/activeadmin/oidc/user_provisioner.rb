@@ -42,6 +42,10 @@ module ActiveAdmin
 
         save!(admin_user)
         admin_user
+      rescue RetryProvisioning
+        # Concurrent JIT provisioning: another thread inserted first.
+        # Re-run once — find_or_adopt_or_build will now find the record.
+        retry
       end
 
       private
@@ -51,8 +55,7 @@ module ActiveAdmin
       end
 
       def resolve_admin_user_class
-        value = @config.admin_user_class
-        value.is_a?(Class) ? value : Object.const_get(value)
+        @config.admin_user_class.is_a?(Class) ? @config.admin_user_class : @config.admin_user_class.constantize
       end
 
       def validate_claims!
@@ -101,7 +104,14 @@ module ActiveAdmin
 
       def save!(admin_user)
         admin_user.save!
-      rescue ActiveRecord::RecordInvalid, ActiveRecord::RecordNotUnique => e
+      rescue ActiveRecord::RecordNotUnique
+        raise ProvisioningError, denial_message if @retried
+
+        # Concurrent JIT provisioning race: the other thread won the
+        # insert. Re-run call once to find the now-persisted record.
+        @retried = true
+        raise RetryProvisioning
+      rescue ActiveRecord::RecordInvalid => e
         raise ProvisioningError, e.message
       end
 

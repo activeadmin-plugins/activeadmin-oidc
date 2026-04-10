@@ -25,6 +25,7 @@ module ActiveAdmin
     class Error < StandardError; end
     class ConfigurationError < Error; end
     class ProvisioningError < Error; end
+    class RetryProvisioning < Error; end
 
     class << self
       def config

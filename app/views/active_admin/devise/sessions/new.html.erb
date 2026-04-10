@@ -1,7 +1,7 @@
 <div id="login">
   <h2><%= active_admin_application.site_title(self) %></h2>
 
-  <%= form_tag "/admin/auth/oidc", method: :post, data: { turbo: false } do %>
+  <%= form_tag omniauth_authorize_path(resource_name, :oidc), method: :post, data: { turbo: false } do %>
     <%= submit_tag ActiveAdmin::Oidc.config.login_button_label %>
   <% end %>
 </div>
