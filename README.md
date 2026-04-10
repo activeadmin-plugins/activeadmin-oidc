@@ -23,7 +23,7 @@ bin/rails db:migrate
 
 ## Host-app setup checklist
 
-The generator creates the initializer and migration, but it cannot edit your `active_admin.rb` or `admin_user.rb`. Four things have to be in place:
+The generator creates the initializer and migration, but it cannot edit your `active_admin.rb` or `admin_user.rb`. Three things have to be in place:
 
 ### 1. `config/initializers/active_admin.rb`
 
@@ -46,17 +46,19 @@ class AdminUser < ApplicationRecord
 end
 ```
 
-### 3. `config/initializers/devise.rb`
-
-ActiveAdmin mounts Devise under `/admin`, so OmniAuth's path prefix has to match:
-
-```ruby
-config.omniauth_path_prefix = "/admin/auth"
-```
-
-### 4. `config/initializers/activeadmin_oidc.rb` (generated)
+### 3. `config/initializers/activeadmin_oidc.rb` (generated)
 
 Fill in at minimum `issuer`, `client_id`, and an `on_login` hook. Full reference below.
+
+## What the engine does automatically
+
+The gem's Rails engine handles several things so host apps don't have to:
+
+* **OmniAuth strategy registration** — the engine registers the `:openid_connect` strategy with Devise automatically based on your `ActiveAdmin::Oidc` configuration. You do **not** need to add `config.omniauth` or `config.omniauth_path_prefix` to `devise.rb`.
+* **Callback controller** — the engine patches `ActiveAdmin::Devise.controllers` to route OmniAuth callbacks to the gem's controller. No manual `controllers: { omniauth_callbacks: ... }` needed in `routes.rb`.
+* **Login view override** — the engine prepends an SSO-only login page (no email/password fields) to the sessions controller's view path. If your host app ships its own `app/views/active_admin/devise/sessions/new.html.erb`, the gem detects it and backs off — your view wins.
+* **Path prefix** — the engine sets `Devise.omniauth_path_prefix` and `OmniAuth.config.path_prefix` to `/admin/auth` so the middleware intercepts requests under ActiveAdmin's mount point. Compatible with Rails 7.2+ and Rails 8's lazy route loading.
+* **Parameter filtering** — `code`, `id_token`, `access_token`, `refresh_token`, `state`, and `nonce` are added to `Rails.application.config.filter_parameters`.
 
 ## Configuration
 
@@ -69,6 +71,11 @@ ActiveAdmin::Oidc.configure do |c|
 
   # --- OIDC scopes ------------------------------------------------------
   # c.scope = "openid email profile"
+
+  # --- Redirect URI -----------------------------------------------------
+  # Normally auto-derived from the callback route. Set explicitly when
+  # behind a reverse proxy, CDN, or when the IdP requires exact matching.
+  # c.redirect_uri = "https://admin.example.com/admin/auth/oidc/callback"
 
   # --- Identity lookup --------------------------------------------------
   # Which AdminUser column to match existing rows against, and which
@@ -106,6 +113,7 @@ end
 | `client_secret` | `nil` | Blank ⇒ PKCE public client |
 | `scope` | `"openid email profile"` | Space-separated OIDC scopes |
 | `pkce` | auto | `true` when `client_secret` is blank; overridable |
+| `redirect_uri` | `nil` (auto) | Explicit callback URL; needed behind reverse proxies |
 | `identity_attribute` | `:email` | AdminUser column used for lookup/adoption |
 | `identity_claim` | `:email` | Claim key read from the id_token/userinfo |
 | `admin_user_class` | `"AdminUser"` | String or Class for the host's admin user model |
@@ -218,7 +226,18 @@ AdminUser.last.oidc_raw_info
 * A login button is added to the ActiveAdmin sessions page via a prepended view override — no templates to edit.
 * Clicking it POSTs to `/admin/auth/oidc` with a Rails CSRF token. The gem loads `omniauth-rails_csrf_protection` so OmniAuth 2.x delegates its authenticity check to Rails' forgery protection and `button_to` just works.
 * After a successful callback the user is signed in and redirected to `/admin` (not the host app's `/`, which may not exist).
+* **Disabled/locked users are rejected.** Devise's `active_for_authentication?` is checked after provisioning but before sign-in. If your model overrides this method (e.g. to check an `enabled` flag or Devise's `:lockable` module), the guard fires on OIDC sign-in too — the user sees an appropriate flash and is redirected to the login page.
 * Logout goes through Devise's stock session destroy. No RP-initiated single-logout ping to the IdP — override the destroy action in your host app if you need that.
+
+## Custom login view
+
+The gem ships a minimal SSO-only login page (a single button, no email/password fields). If you need a different layout — for instance, a combined SSO + password form for a break-glass mode — drop your own template at:
+
+```
+app/views/active_admin/devise/sessions/new.html.erb
+```
+
+The engine detects the host-app file and does not prepend its own view, so yours takes precedence with no extra configuration.
 
 ## Security notes
 
@@ -238,7 +257,7 @@ The gem also adds a unique `(provider, uid)` partial index in its own install mi
 
 ### What's filtered from logs
 
-The initializer merges `code`, `id_token`, `access_token`, `refresh_token`, `state`, and `nonce` into `Rails.application.config.filter_parameters` so a mid-callback crash can't dump them into production logs. Your own `filter_parameters` entries are preserved.
+The engine merges `code`, `id_token`, `access_token`, `refresh_token`, `state`, and `nonce` into `Rails.application.config.filter_parameters` so a mid-callback crash can't dump them into production logs. Your own `filter_parameters` entries are preserved.
 
 ## Logger
 
