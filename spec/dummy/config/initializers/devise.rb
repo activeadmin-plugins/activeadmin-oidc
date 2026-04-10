@@ -1,12 +1,8 @@
 # frozen_string_literal: true
 
 Devise.setup do |config|
-  config.mailer_sender = "please-change-me@example.com"
-  require "devise/orm/active_record"
-
-  # ActiveAdmin mounts Devise under /admin, so OmniAuth middleware must
-  # intercept /admin/auth/:provider instead of the default per-model prefix.
-  config.omniauth_path_prefix = "/admin/auth"
+  config.mailer_sender = 'please-change-me@example.com'
+  require 'devise/orm/active_record'
 
   config.case_insensitive_keys = [:email]
   config.strip_whitespace_keys = [:email]
@@ -19,28 +15,7 @@ Devise.setup do |config|
   config.reset_password_within = 6.hours
   config.sign_out_via = :delete
 
-  # Wire omniauth_openid_connect via the gem. Deliberately lazy so that
-  # specs that `reset!` the config mid-test work without warnings — we
-  # register a minimal fake provider up front and rely on the test suite
-  # to mock omniauth.auth.
-  require "omniauth_openid_connect"
-
-  config.omniauth :openid_connect,
-                  name:          :oidc,
-                  path_prefix:   "/admin/auth",
-                  issuer:        "https://idp.example.com",
-                  discovery:     false,
-                  scope:         %i[openid email profile],
-                  response_type: :code,
-                  client_options: {
-                    identifier: "client-abc",
-                    secret:     "client-secret",
-                    port:       443,
-                    scheme:     "https",
-                    host:       "idp.example.com",
-                    authorization_endpoint: "/oauth/authorize",
-                    token_endpoint:         "/oauth/token",
-                    userinfo_endpoint:      "/oauth/userinfo",
-                    jwks_uri:               "/oauth/keys"
-                  }
+  # OmniAuth strategy registration and path prefix are handled automatically
+  # by the gem's engine (see lib/activeadmin/oidc/engine.rb) based on the
+  # ActiveAdmin::Oidc configuration in config/initializers/activeadmin_oidc.rb.
 end
