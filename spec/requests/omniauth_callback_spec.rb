@@ -149,6 +149,23 @@ RSpec.describe "OIDC callback", type: :request do
     end
   end
 
+  context "disabled user (active_for_authentication? returns false)" do
+    it "does not sign in the user and redirects to login" do
+      AdminUser.create!(
+        email:    "disabled@example.com",
+        provider: "oidc",
+        uid:      "sub-disabled",
+        enabled:  false
+      )
+
+      OmniAuth.config.mock_auth[:oidc] =
+        build_auth_hash(uid: "sub-disabled", email: "disabled@example.com")
+
+      trigger_callback
+      expect(response).to redirect_to("/admin/login")
+    end
+  end
+
   context "OmniAuth strategy failure (e.g. invalid_credentials)" do
     before do
       OmniAuth.config.mock_auth[:oidc] = :invalid_credentials

@@ -7,4 +7,8 @@ class AdminUser < ApplicationRecord
   validates :email, presence: true
 
   serialize :oidc_raw_info, coder: JSON
+
+  def active_for_authentication?
+    super && enabled?
+  end
 end

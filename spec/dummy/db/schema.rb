@@ -9,6 +9,7 @@ ActiveRecord::Schema[7.2].define(version: 0) do
     t.string   :uid
     t.text     :oidc_raw_info
     t.string   :department
+    t.boolean  :enabled, default: true
     t.timestamps
   end
 
