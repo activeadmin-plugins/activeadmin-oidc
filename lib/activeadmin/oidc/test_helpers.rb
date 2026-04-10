@@ -29,6 +29,12 @@ module ActiveAdmin
       def stub_oidc_sign_in(sub: 'alice-sub', claims: {})
         merged = DEFAULT_CLAIMS.merge(claims.transform_keys(&:to_s))
         OmniAuth.config.test_mode = true
+        # OmniAuth 2.x still runs request_validation_phase in test mode
+        # (mock_request_call, line 325 of strategy.rb). Disable it so
+        # the CSRF check from omniauth-rails_csrf_protection doesn't
+        # reject the mocked request.
+        @_oidc_saved_request_validation_phase = OmniAuth.config.request_validation_phase
+        OmniAuth.config.request_validation_phase = nil
         OmniAuth.config.mock_auth[:oidc] = OmniAuth::AuthHash.new(
           provider: 'oidc',
           uid: sub,
@@ -45,6 +51,8 @@ module ActiveAdmin
       # Stubs OmniAuth to simulate a strategy failure.
       def stub_oidc_failure(message_key = :invalid_credentials)
         OmniAuth.config.test_mode = true
+        @_oidc_saved_request_validation_phase = OmniAuth.config.request_validation_phase
+        OmniAuth.config.request_validation_phase = nil
         OmniAuth.config.mock_auth[:oidc] = message_key
       end
 
@@ -52,6 +60,7 @@ module ActiveAdmin
       def reset_oidc_stubs
         OmniAuth.config.mock_auth[:oidc] = nil
         OmniAuth.config.test_mode = false
+        OmniAuth.config.request_validation_phase = @_oidc_saved_request_validation_phase if defined?(@_oidc_saved_request_validation_phase)
       end
     end
 
