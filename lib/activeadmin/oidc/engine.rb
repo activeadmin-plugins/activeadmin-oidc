@@ -87,6 +87,15 @@ module ActiveAdmin
                             host: nil
                           }.compact
         end
+
+        # Devise propagates omniauth_path_prefix to
+        # OmniAuth.config.path_prefix during route generation
+        # (set_omniauth_path_prefix!). On Rails 8 routes load lazily,
+        # so the OmniAuth middleware may process requests before routes
+        # are drawn and miss the prefix. Set it eagerly here.
+        # Must happen AFTER `devise.omniauth` because that call
+        # triggers autoload of devise/omniauth which nils the value.
+        ::OmniAuth.config.path_prefix = ::Devise.omniauth_path_prefix
       end
 
       initializer 'activeadmin_oidc.filter_parameters' do |app|
