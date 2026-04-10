@@ -1,9 +1,7 @@
 <div id="login">
   <h2><%= active_admin_application.site_title(self) %></h2>
 
-  <%= button_to ActiveAdmin::Oidc.config.login_button_label,
-                "/admin/auth/oidc",
-                method: :post,
-                class: "activeadmin-oidc-login-button",
-                data: { turbo: false } %>
+  <%= form_tag "/admin/auth/oidc", method: :post, data: { turbo: false } do %>
+    <%= submit_tag ActiveAdmin::Oidc.config.login_button_label %>
+  <% end %>
 </div>
