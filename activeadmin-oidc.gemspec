@@ -14,7 +14,7 @@ Gem::Specification.new do |spec|
     single install generator that wires everything up.
   DESC
   spec.license  = "MIT"
-  spec.homepage = "https://github.com/fedoronchuk/activeadmin-oidc"
+  spec.homepage = "https://github.com/activeadmin-plugins/activeadmin-oidc"
 
   spec.required_ruby_version = ">= 3.2.0"
 
