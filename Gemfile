@@ -1,19 +1,11 @@
 # frozen_string_literal: true
 
-source "https://rubygems.org"
-
-gemspec
-
-default_rails_version       = "7.2.0"
-default_activeadmin_version = "3.5.0"
-
-rails_version       = ENV.fetch("RAILS", default_rails_version)
-activeadmin_version = ENV.fetch("AA",    default_activeadmin_version)
-# 0.6.x uses openid_connect 1.x (httpclient, no faraday) — required for
-# host apps still on faraday 1.x. 0.7.x uses openid_connect 2.x (faraday 2.x).
-ooidc_version       = ENV["OOIDC"]
-
-gem "rails",        "~> #{rails_version}"
-gem "activerecord", "~> #{rails_version}"
-gem "activeadmin",  "~> #{activeadmin_version}"
-gem "omniauth_openid_connect", "~> #{ooidc_version}" if ooidc_version
+# Local development and `rake spec:all` (run without BUNDLE_GEMFILE)
+# default to the ActiveAdmin 3.5 stack. CI selects a specific stack via
+# BUNDLE_GEMFILE — see gemfiles/activeadmin_3.5.gemfile (Sprockets/Sassc)
+# and gemfiles/activeadmin_4.0.gemfile (Propshaft/importmap/Tailwind).
+#
+# eval_gemfile keeps a single source of truth: the `gemspec path: ".."`
+# inside the eval'd file resolves relative to gemfiles/, i.e. this repo
+# root, exactly as it does when CI loads the gemfile directly.
+eval_gemfile File.expand_path("gemfiles/activeadmin_3.5.gemfile", __dir__)

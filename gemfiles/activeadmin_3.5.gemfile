@@ -1,0 +1,16 @@
+# frozen_string_literal: true
+
+source "https://rubygems.org"
+
+gemspec path: ".."
+
+# ActiveAdmin 3.5 line: classic Sprockets + Sassc asset pipeline.
+gem "activeadmin", "~> 3.5.0"
+gem "rails",       "~> 7.2.0"
+
+# openid_connect 1.x line (httpclient-based, no faraday dep). Pinning the
+# 0.6.x series here keeps CI exercising the pre-faraday strategy path.
+gem "omniauth_openid_connect", "~> 0.6.0"
+
+gem "sprockets-rails", ">= 3.4"
+gem "sassc-rails",     ">= 2.1"

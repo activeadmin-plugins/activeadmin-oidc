@@ -3,6 +3,7 @@
 require "logger"
 require "active_support/core_ext/object/blank"
 require "activeadmin/oidc/version"
+require "active_admin/version"
 
 # `omniauth-rails_csrf_protection` registers a Railtie that replaces
 # OmniAuth 2.x's Rack-level authenticity check with Rails' own forgery
@@ -51,6 +52,15 @@ module ActiveAdmin
       def reset!
         @config = Configuration.new
         @logger = nil
+      end
+
+      # True when the installed ActiveAdmin is the 4.x line (including the
+      # 4.0.0 prereleases). AA 4 ships a Tailwind-based admin layout, so
+      # the login view override must emit Tailwind markup instead of the
+      # legacy `#login` structure AA 3.x expects. Mirrors the version probe
+      # ActiveAdmin plugins use (e.g. activeadmin_table_footer's styles.rb).
+      def aa_v4?
+        ::Gem::Version.new(::ActiveAdmin::VERSION) >= ::Gem::Version.new("4.0.0.beta1")
       end
 
       private

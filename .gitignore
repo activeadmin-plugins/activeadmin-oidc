@@ -11,11 +11,16 @@
 .DS_Store
 .rspec_status
 /Gemfile.lock
+/gemfiles/*.lock
 /spec/dummy/log/
 /spec/dummy/tmp/
 /spec/dummy/db/*.sqlite3
 /spec/dummy/db/*.sqlite3-journal
 /spec/dummy/storage/
+/spec/dummy_engine/log/
+/spec/dummy_engine/tmp/
+/spec/dummy_isolated/log/
+/spec/dummy_isolated/tmp/
 
 # The dummy app's database.yml is checked in — override a global
 # ignore rule that excludes "database.yml" everywhere by default.
