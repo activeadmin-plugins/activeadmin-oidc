@@ -9,24 +9,17 @@ permissions:
 
 jobs:
   test:
-    name: Ruby ${{ matrix.ruby }} / Rails ${{ matrix.rails }} / AA ${{ matrix.activeadmin }} / OOIDC ${{ matrix.omniauth_openid_connect }}
+    name: Ruby ${{ matrix.ruby }} / ${{ matrix.gemfile }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         ruby: ['3.2', '3.3', '3.4']
-        rails: ['7.2.0', '8.0.0']
-        activeadmin: ['3.5.0']
-        # 0.6.x → openid_connect 1.x (httpclient, no faraday dep).
-        # 0.7.x / 0.8.x → openid_connect 2.x (faraday 2.x).
-        omniauth_openid_connect: ['0.6.0', '0.7.0', '0.8.0']
-        # AA 3.4.0 is excluded: it pins devise < 5, which is
-        # incompatible with the devise >= 4.9 floor this gem needs.
-        # Support starts at ActiveAdmin 3.5, which lifted that cap.
+        gemfile:
+          - gemfiles/activeadmin_3.5.gemfile
+          - gemfiles/activeadmin_4.0.gemfile
     env:
-      RAILS: ${{ matrix.rails }}
-      AA: ${{ matrix.activeadmin }}
-      OOIDC: ${{ matrix.omniauth_openid_connect }}
+      BUNDLE_GEMFILE: ${{ github.workspace }}/${{ matrix.gemfile }}
     steps:
       - uses: actions/checkout@v4
       - uses: ruby/setup-ruby@v1

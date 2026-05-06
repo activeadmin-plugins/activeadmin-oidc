@@ -2,6 +2,7 @@
 
 require "rails/generators/base"
 require "rails/generators/active_record"
+require "active_admin/version"
 
 module ActiveAdmin
   module Oidc
@@ -74,8 +75,13 @@ module ActiveAdmin
         end
 
         def create_view_override
-          copy_file "sessions_new.html.erb",
-                    "app/views/active_admin/devise/sessions/new.html.erb"
+          if aa_v4?
+            copy_file "sessions_new_v4.html.erb",
+                      "app/views/active_admin/devise/sessions/new.html.erb"
+          else
+            copy_file "sessions_new.html.erb",
+                      "app/views/active_admin/devise/sessions/new.html.erb"
+          end
         end
 
         # Non-blocking: the generator completed successfully, but the
@@ -141,6 +147,15 @@ module ActiveAdmin
         def raw_info_column_type
           adapter = (ActiveRecord::Base.connection_db_config.adapter rescue "sqlite3").to_s
           adapter.start_with?("postgres") ? ":jsonb" : ":text"
+        end
+
+        # True when the installed ActiveAdmin is the 4.x line (including the
+        # 4.0.0 prereleases). AA 4 ships a Tailwind-based admin layout, so
+        # the login view override must emit Tailwind markup instead of the
+        # legacy `#login` structure AA 3.x expects. Mirrors the version probe
+        # ActiveAdmin plugins use (e.g. activeadmin_table_footer's styles.rb).
+        def aa_v4?
+          ::Gem::Version.new(::ActiveAdmin::VERSION) >= ::Gem::Version.new("4.0.0.beta1")
         end
       end
     end

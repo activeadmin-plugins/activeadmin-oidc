@@ -1,0 +1,19 @@
+# frozen_string_literal: true
+
+source "https://rubygems.org"
+
+gemspec path: ".."
+
+# ActiveAdmin 4.0 line (currently shipping as 4.0.0.beta*). AA 4 replaces
+# the Sprockets/Sassc pipeline with Propshaft + importmap + cssbundling +
+# Tailwind, so the asset gems differ entirely from the 3.5 gemfile.
+gem "activeadmin", ">= 4.0.0.beta", "< 5"
+gem "rails",       "~> 8.0.0"
+
+# openid_connect 2.x line (faraday 2.x).
+gem "omniauth_openid_connect", "~> 0.8.0"
+
+gem "propshaft"
+gem "importmap-rails"
+gem "cssbundling-rails"
+gem "tailwindcss-rails", "~> 4.0"

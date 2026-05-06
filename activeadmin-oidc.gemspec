@@ -27,7 +27,7 @@ Gem::Specification.new do |spec|
   ]
   spec.require_paths = ["lib"]
 
-  spec.add_dependency "activeadmin",            ">= 3.5", "< 4"
+  spec.add_dependency "activeadmin",            ">= 3.5", "< 5"
   # Devise 5.0 wraps `Devise.mappings` with `reload_routes_unless_loaded`
   # (heartcombo/devise#5728) so OmniAuth's failure handler works under
   # Rails 8 lazy route loading without an engine-side workaround.
@@ -46,8 +46,11 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "webmock",      ">= 3.19"
   spec.add_development_dependency "jwt",          ">= 2.7"
   spec.add_development_dependency "sqlite3",      ">= 1.7"
-  spec.add_development_dependency "sprockets-rails", ">= 3.4"
-  spec.add_development_dependency "sassc-rails",     ">= 2.1"
+  # The asset pipeline gems live in the per-version gemfiles under
+  # gemfiles/ rather than here: ActiveAdmin 3.5 needs Sprockets + Sassc,
+  # while ActiveAdmin 4.0 needs Propshaft + importmap + cssbundling +
+  # Tailwind. Keeping them out of the gemspec lets each gemfile install
+  # exactly one asset stack instead of both.
   spec.add_development_dependency "rake",         ">= 13.0"
   spec.add_development_dependency "rubocop",      ">= 1.60"
   spec.add_development_dependency "rubocop-rails", ">= 2.20"
