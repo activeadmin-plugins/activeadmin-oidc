@@ -31,7 +31,11 @@ Gem::Specification.new do |spec|
   spec.add_dependency "devise",                 ">= 4.9"
   spec.add_dependency "omniauth",               ">= 2.1"
   spec.add_dependency "omniauth-rails_csrf_protection", ">= 1.0"
-  spec.add_dependency "omniauth_openid_connect", ">= 0.7"
+  # 0.6.x → openid_connect 1.x (httpclient-based, no faraday dep).
+  # 0.7.x+ → openid_connect 2.x (faraday 2.x). Host apps still on faraday 1.x
+  # need 0.6.x. activeadmin-oidc only uses the standard OmniAuth strategy
+  # registration API, which is identical across both lines.
+  spec.add_dependency "omniauth_openid_connect", ">= 0.6"
   spec.add_dependency "rails",                  ">= 7.2"
 
   spec.add_development_dependency "rspec-rails",  ">= 6.0"
