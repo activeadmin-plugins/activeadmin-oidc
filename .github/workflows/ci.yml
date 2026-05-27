@@ -33,5 +33,7 @@ jobs:
         with:
           ruby-version: ${{ matrix.ruby }}
           bundler-cache: true
-      - name: Run tests
+      - name: Run default specs (dummy app)
         run: bundle exec rspec spec
+      - name: Run engine-mounted-Devise specs (dummy_engine app)
+        run: bundle exec rspec --options /dev/null --require spec_helper -I spec/engine spec/engine
