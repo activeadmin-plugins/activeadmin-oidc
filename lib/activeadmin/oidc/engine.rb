@@ -11,9 +11,25 @@ module ActiveAdmin
       # Used to gate controller registration and view overrides so the
       # gem is a no-op when OIDC is not enabled on the model.
       def self.oidc_enabled?
-        admin_class = ActiveAdmin::Oidc.config.admin_user_class
-        klass = admin_class.is_a?(String) ? admin_class.safe_constantize : admin_class
+        klass = admin_user_class
         klass.respond_to?(:devise_modules) && klass.devise_modules.include?(:omniauthable)
+      end
+
+      # True when OIDC is the *only* authentication mechanism: model
+      # includes :omniauthable but not :database_authenticatable. In
+      # that case Devise does not mount session routes (no password to
+      # log in with), so we mount our own GET /admin/login + DELETE
+      # /admin/logout so ActiveAdmin's login redirect still resolves.
+      def self.oidc_only?
+        return false unless oidc_enabled?
+
+        modules = admin_user_class.devise_modules
+        !modules.include?(:database_authenticatable)
+      end
+
+      def self.admin_user_class
+        admin_class = ActiveAdmin::Oidc.config.admin_user_class
+        admin_class.is_a?(String) ? admin_class.safe_constantize : admin_class
       end
 
       ControllersPatch = Module.new do
@@ -100,6 +116,24 @@ module ActiveAdmin
 
       initializer 'activeadmin_oidc.filter_parameters' do |app|
         app.config.filter_parameters |= %i[code id_token access_token refresh_token state nonce]
+      end
+
+      # When the host's AdminUser model omits :database_authenticatable
+      # there are no session routes from Devise, so ActiveAdmin's login
+      # redirect to `new_admin_user_session_path` 404s. Mount our own
+      # /admin/login + /admin/logout in the same devise scope so the
+      # helpers and routes exist and render the SSO landing page.
+      initializer 'activeadmin_oidc.mount_oidc_only_routes' do |app|
+        app.config.to_prepare do
+          next unless Engine.oidc_only?
+
+          app.routes.append do
+            devise_scope :admin_user do
+              get    '/admin/login',  to: 'active_admin/oidc/devise/sessions#new',     as: :new_admin_user_session
+              delete '/admin/logout', to: 'active_admin/oidc/devise/sessions#destroy', as: :destroy_admin_user_session
+            end
+          end
+        end
       end
     end
   end

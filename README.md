@@ -36,6 +36,20 @@ Without these, `/admin` is public to anyone and the utility navigation (includin
 
 ### 2. `app/models/admin_user.rb`
 
+For SSO-only setups (recommended — no local password login at all):
+
+```ruby
+class AdminUser < ApplicationRecord
+  devise :omniauthable, omniauth_providers: [:oidc]
+
+  serialize :oidc_raw_info, coder: JSON
+end
+```
+
+The engine auto-mounts `/admin/login` (SSO landing page) and `/admin/logout` so ActiveAdmin's login link still resolves, even though Devise's `:database_authenticatable` isn't installed. The `encrypted_password` column is **not** required.
+
+If you also want password login alongside SSO, add the usual modules and column:
+
 ```ruby
 class AdminUser < ApplicationRecord
   devise :database_authenticatable,
@@ -45,6 +59,8 @@ class AdminUser < ApplicationRecord
   serialize :oidc_raw_info, coder: JSON
 end
 ```
+
+Devise then mounts the session routes itself and the engine's auto-mount becomes a no-op.
 
 ### 3. `config/initializers/activeadmin_oidc.rb` (generated)
 
@@ -57,6 +73,7 @@ The gem's Rails engine handles several things so host apps don't have to:
 * **OmniAuth strategy registration** — the engine registers the `:openid_connect` strategy with Devise automatically based on your `ActiveAdmin::Oidc` configuration. You do **not** need to add `config.omniauth` or `config.omniauth_path_prefix` to `devise.rb`.
 * **Callback controller** — the engine patches `ActiveAdmin::Devise.controllers` to route OmniAuth callbacks to the gem's controller. No manual `controllers: { omniauth_callbacks: ... }` needed in `routes.rb`.
 * **Login view override** — the engine prepends an SSO-only login page (no email/password fields) to the sessions controller's view path. If your host app ships its own `app/views/active_admin/devise/sessions/new.html.erb`, the gem detects it and backs off — your view wins.
+* **OIDC-only session routes** — when the host's AdminUser model omits `:database_authenticatable`, the engine mounts its own `GET /admin/login` (renders the SSO landing page) and `DELETE /admin/logout` under the existing `devise_scope :admin_user`. Without this, ActiveAdmin's redirect to `new_admin_user_session_path` would 404 because Devise only generates those routes from `:database_authenticatable`.
 * **Path prefix** — the engine sets `Devise.omniauth_path_prefix` and `OmniAuth.config.path_prefix` to `/admin/auth` so the middleware intercepts requests under ActiveAdmin's mount point. Compatible with Rails 7.2+ and Rails 8's lazy route loading.
 * **Parameter filtering** — `code`, `id_token`, `access_token`, `refresh_token`, `state`, and `nonce` are added to `Rails.application.config.filter_parameters`.
 

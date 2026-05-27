@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 class AdminUser < ApplicationRecord
-  devise :database_authenticatable, :omniauthable,
+  devise :omniauthable,
          omniauth_providers: [:oidc]
 
   validates :email, presence: true
