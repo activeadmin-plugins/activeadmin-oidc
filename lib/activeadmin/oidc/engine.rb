@@ -15,18 +15,6 @@ module ActiveAdmin
         klass.respond_to?(:devise_modules) && klass.devise_modules.include?(:omniauthable)
       end
 
-      # True when OIDC is the *only* authentication mechanism: model
-      # includes :omniauthable but not :database_authenticatable. In
-      # that case Devise does not mount session routes (no password to
-      # log in with), so we mount our own GET /admin/login + DELETE
-      # /admin/logout so ActiveAdmin's login redirect still resolves.
-      def self.oidc_only?
-        return false unless oidc_enabled?
-
-        modules = admin_user_class.devise_modules
-        !modules.include?(:database_authenticatable)
-      end
-
       def self.admin_user_class
         admin_class = ActiveAdmin::Oidc.config.admin_user_class
         admin_class.is_a?(String) ? admin_class.safe_constantize : admin_class
@@ -118,14 +106,17 @@ module ActiveAdmin
         app.config.filter_parameters |= %i[code id_token access_token refresh_token state nonce]
       end
 
-      # When the host's AdminUser model omits :database_authenticatable
-      # there are no session routes from Devise, so ActiveAdmin's login
-      # redirect to `new_admin_user_session_path` 404s. Mount our own
-      # /admin/login + /admin/logout in the same devise scope so the
-      # helpers and routes exist and render the SSO landing page.
-      initializer 'activeadmin_oidc.mount_oidc_only_routes' do |app|
+      # The gem is OIDC-first: mount our SSO landing page at /admin/login
+      # and a warden-based /admin/logout under the existing devise scope.
+      # Without these, hosts that omit :database_authenticatable have no
+      # session routes from Devise at all, so ActiveAdmin's redirect to
+      # `new_admin_user_session_path` 404s. Hosts that DO keep
+      # :database_authenticatable get our SSO landing on GET; Devise's
+      # POST /admin/login (password sign-in) is unaffected because it
+      # lives on the same path with a different verb.
+      initializer 'activeadmin_oidc.mount_oidc_sessions_routes' do |app|
         app.config.to_prepare do
-          next unless Engine.oidc_only?
+          next unless Engine.oidc_enabled?
 
           app.routes.append do
             devise_scope :admin_user do
