@@ -101,19 +101,6 @@ module ActiveAdmin
       initializer 'activeadmin_oidc.filter_parameters' do |app|
         app.config.filter_parameters |= %i[code id_token access_token refresh_token state nonce]
       end
-
-      # Rails 8 lazy-loads routes; OmniAuth's failure handler walks
-      # `Devise.mappings.find_by_path!` which sees an empty mapping
-      # registry and raises "Could not find a valid mapping for path
-      # /admin/auth/oidc", masking the real underlying error (CSRF,
-      # mis-issued id_token, etc). Forcing route load at after_initialize
-      # populates the registry before the first OmniAuth callback hits.
-      # `execute_unless_loaded` is a Rails 8 API; on Rails 7.x routes
-      # load eagerly so this is already populated.
-      config.after_initialize do
-        reloader = Rails.application.routes_reloader
-        reloader.execute_unless_loaded if reloader.respond_to?(:execute_unless_loaded)
-      end
     end
   end
 end
