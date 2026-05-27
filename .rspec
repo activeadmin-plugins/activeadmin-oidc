@@ -1,3 +1,4 @@
 --require spec_helper
 --format documentation
 --color
+--exclude-pattern "spec/engine/**/*_spec.rb,spec/isolated/**/*_spec.rb"
