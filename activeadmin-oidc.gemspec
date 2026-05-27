@@ -28,10 +28,17 @@ Gem::Specification.new do |spec|
   spec.require_paths = ["lib"]
 
   spec.add_dependency "activeadmin",            ">= 3.5", "< 4"
-  spec.add_dependency "devise",                 ">= 4.9"
+  # Devise 5.0 wraps `Devise.mappings` with `reload_routes_unless_loaded`
+  # (heartcombo/devise#5728) so OmniAuth's failure handler works under
+  # Rails 8 lazy route loading without an engine-side workaround.
+  spec.add_dependency "devise",                 ">= 5.0"
   spec.add_dependency "omniauth",               ">= 2.1"
   spec.add_dependency "omniauth-rails_csrf_protection", ">= 1.0"
-  spec.add_dependency "omniauth_openid_connect", ">= 0.7"
+  # 0.6.x → openid_connect 1.x (httpclient-based, no faraday dep).
+  # 0.7.x+ → openid_connect 2.x (faraday 2.x). Host apps still on faraday 1.x
+  # need 0.6.x. activeadmin-oidc only uses the standard OmniAuth strategy
+  # registration API, which is identical across both lines.
+  spec.add_dependency "omniauth_openid_connect", ">= 0.6"
   spec.add_dependency "rails",                  ">= 7.2"
 
   spec.add_development_dependency "rspec-rails",  ">= 6.0"
