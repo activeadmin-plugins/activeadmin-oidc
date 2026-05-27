@@ -108,8 +108,11 @@ module ActiveAdmin
       # /admin/auth/oidc", masking the real underlying error (CSRF,
       # mis-issued id_token, etc). Forcing route load at after_initialize
       # populates the registry before the first OmniAuth callback hits.
+      # `execute_unless_loaded` is a Rails 8 API; on Rails 7.x routes
+      # load eagerly so this is already populated.
       config.after_initialize do
-        Rails.application.routes_reloader.execute_unless_loaded
+        reloader = Rails.application.routes_reloader
+        reloader.execute_unless_loaded if reloader.respond_to?(:execute_unless_loaded)
       end
     end
   end
