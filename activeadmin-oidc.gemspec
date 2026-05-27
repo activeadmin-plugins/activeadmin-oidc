@@ -39,6 +39,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency "rails",                  ">= 7.2"
 
   spec.add_development_dependency "rspec-rails",  ">= 6.0"
+  spec.add_development_dependency "capybara",     ">= 3.40"
   spec.add_development_dependency "webmock",      ">= 3.19"
   spec.add_development_dependency "jwt",          ">= 2.7"
   spec.add_development_dependency "sqlite3",      ">= 1.7"
