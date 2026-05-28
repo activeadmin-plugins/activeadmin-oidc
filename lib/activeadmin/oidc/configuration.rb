@@ -11,12 +11,15 @@ module ActiveAdmin
       DEFAULT_ADMIN_USER_CLASS    = 'AdminUser'
       DEFAULT_ACCESS_DENIED_MESSAGE =
         'Your account has no permission to access this admin panel.'
+      DEFAULT_LOGIN_PATH  = '/admin/login'
+      DEFAULT_LOGOUT_PATH = '/admin/logout'
 
       attr_accessor :issuer, :client_id, :client_secret, :scope,
                     :redirect_uri,
                     :login_button_label, :timeout,
                     :identity_attribute, :identity_claim,
-                    :access_denied_message, :on_login, :admin_user_class
+                    :access_denied_message, :on_login, :admin_user_class,
+                    :login_path, :logout_path
 
       def initialize
         reset!
@@ -34,6 +37,8 @@ module ActiveAdmin
         @identity_claim        = DEFAULT_IDENTITY_CLAIM
         @access_denied_message = DEFAULT_ACCESS_DENIED_MESSAGE
         @admin_user_class      = DEFAULT_ADMIN_USER_CLASS
+        @login_path            = DEFAULT_LOGIN_PATH
+        @logout_path           = DEFAULT_LOGOUT_PATH
         @on_login              = nil
         @pkce_override         = nil
         self
