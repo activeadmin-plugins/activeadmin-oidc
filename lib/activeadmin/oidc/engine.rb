@@ -140,10 +140,14 @@ module ActiveAdmin
         app.config.to_prepare do
           next unless Engine.oidc_enabled?
 
+          cfg = ActiveAdmin::Oidc.config
+          login_path  = cfg.login_path
+          logout_path = cfg.logout_path
+
           Engine.session_routes_target(app).append do
             devise_scope :admin_user do
-              get    '/admin/login',  to: 'active_admin/oidc/devise/sessions#new',     as: :new_admin_user_session
-              delete '/admin/logout', to: 'active_admin/oidc/devise/sessions#destroy', as: :destroy_admin_user_session
+              get    login_path,  to: 'active_admin/oidc/devise/sessions#new',     as: :new_admin_user_session
+              delete logout_path, to: 'active_admin/oidc/devise/sessions#destroy', as: :destroy_admin_user_session
             end
           end
         end
