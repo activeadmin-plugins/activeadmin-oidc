@@ -20,3 +20,5 @@
 # The dummy app's database.yml is checked in — override a global
 # ignore rule that excludes "database.yml" everywhere by default.
 !/spec/dummy/config/database.yml
+!/spec/dummy_engine/config/database.yml
+!/spec/dummy_isolated/config/database.yml
