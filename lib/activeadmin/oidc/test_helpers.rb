@@ -64,14 +64,28 @@ module ActiveAdmin
       end
     end
 
-    # RSpec support for oidc_mode tag filtering.
-    # Require this file in spec_helper or rails_helper to auto-configure:
+    # Opt-in RSpec support for the `oidc_mode` tag.
+    #
+    # Hosts where OIDC is OPTIONAL (some envs run without an IdP) call:
+    #
+    #   require "activeadmin/oidc/test_helpers"
+    #   ActiveAdmin::Oidc::RSpecSupport.install!
+    #
+    # That installs auto-include + skips `oidc_mode: true` specs when
+    # `:omniauthable` isn't loaded, and toggles `CI_RUN_OIDC=true` to
+    # run only OIDC specs in a focused CI job.
+    #
+    # Hosts where OIDC is MANDATORY (yeti-web / pbx-api / didww-rs)
+    # skip the helper entirely and just include the module directly:
     #
     #   require "activeadmin/oidc/test_helpers"
     #
-    # Specs tagged `oidc_mode: true` will be skipped unless the AdminUser
-    # model has :omniauthable loaded. Set CI_RUN_OIDC=true in your CI job
-    # to run only OIDC-tagged specs.
+    #   RSpec.configure do |c|
+    #     c.include ActiveAdmin::Oidc::TestHelpers
+    #     c.after { reset_oidc_stubs }
+    #   end
+    #
+    # No filter, no skip logic, no CI env var to remember.
     module RSpecSupport
       def self.install!
         return unless defined?(RSpec)
@@ -98,6 +112,3 @@ module ActiveAdmin
     end
   end
 end
-
-# Auto-install RSpec support when required during a test run.
-ActiveAdmin::Oidc::RSpecSupport.install!
