@@ -75,17 +75,13 @@ module ActiveAdmin
         end
 
         # Devise's default `after_omniauth_failure_path_for` calls
-        # `new_session_path(scope)`, a URL helper that only gets
-        # generated when :database_authenticatable mounts session
-        # routes. In OIDC-only mode the engine mounts the equivalent
-        # `new_admin_user_session_path` manually; use it if defined,
-        # fall back to the conventional ActiveAdmin login URL.
+        # `new_session_path(scope)`, a URL helper Devise only generates
+        # when :database_authenticatable mounts session routes. The
+        # engine mounts `new_<scope>_session_path` itself (see
+        # `mount_oidc_sessions_routes` initializer) regardless of which
+        # modules are loaded, so we always route through that helper.
         def after_omniauth_failure_path_for(scope)
-          if respond_to?(:new_admin_user_session_path)
-            new_admin_user_session_path
-          else
-            super
-          end
+          public_send(:"new_#{scope}_session_path")
         end
       end
     end

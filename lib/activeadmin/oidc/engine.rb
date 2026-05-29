@@ -137,17 +137,23 @@ module ActiveAdmin
       # route set so `<Engine>.routes.url_helpers.new_admin_user_session_path`
       # resolves. Defaults to `Rails.application.routes` when unset.
       initializer 'activeadmin_oidc.mount_oidc_sessions_routes' do |app|
-        app.config.to_prepare do
+        # after_initialize fires once at boot. `RouteSet#clear!` deliberately
+        # preserves the append/prepend queues across reloads, so re-running
+        # this hook (as `to_prepare` would in dev) accumulates duplicate
+        # append callbacks and crashes the second draw with
+        # "Invalid route name, already in use: 'new_admin_user_session'".
+        app.config.after_initialize do
           next unless Engine.oidc_enabled?
 
-          cfg = ActiveAdmin::Oidc.config
+          cfg         = ActiveAdmin::Oidc.config
           login_path  = cfg.login_path
           logout_path = cfg.logout_path
+          scope_name  = Engine.admin_user_class.model_name.singular.to_sym
 
           Engine.session_routes_target(app).append do
-            devise_scope :admin_user do
-              get    login_path,  to: 'active_admin/oidc/devise/sessions#new',     as: :new_admin_user_session
-              delete logout_path, to: 'active_admin/oidc/devise/sessions#destroy', as: :destroy_admin_user_session
+            devise_scope scope_name do
+              get    login_path,  to: 'active_admin/devise/sessions#new',     as: :"new_#{scope_name}_session"
+              delete logout_path, to: 'active_admin/devise/sessions#destroy', as: :"destroy_#{scope_name}_session"
             end
           end
         end
