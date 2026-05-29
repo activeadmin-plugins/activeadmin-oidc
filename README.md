@@ -60,7 +60,22 @@ class AdminUser < ApplicationRecord
 end
 ```
 
-Devise then mounts the session routes itself and the engine's auto-mount becomes a no-op.
+In mixed mode Devise's own `devise_for` already maps `GET /admin/login` to its session controller. Because host routes are drawn before the gem's `after_initialize` append, Devise wins recognition for that path and renders its default sessions view (with both password form and OmniAuth links). The gem's auto-mount is a silent no-op — keep your custom `app/views/active_admin/devise/sessions/new.html.erb` if you want a specific landing UI.
+
+### Engine-mounted Devise (yeti-web / pbx-api pattern)
+
+If `devise_for :admin_users` lives inside a Rails engine (not the main app routes), set `Devise.router_name = :<engine_name>` in `config/initializers/devise.rb`. The gem reads this and mounts its session routes inside that engine's route set so `<Engine>.routes.url_helpers.new_<scope>_session_path` resolves correctly.
+
+For **isolated** engines (`isolate_namespace ...`) mounted at a prefix (e.g. `mount AdminPanel::Engine => '/admin'`), the engine prepends its mount path to every internal route. The gem's default `login_path = '/admin/login'` would then become `/admin/admin/login`. Configure engine-relative paths in `config/initializers/activeadmin_oidc.rb`:
+
+```ruby
+ActiveAdmin::Oidc.configure do |c|
+  c.login_path  = '/login'
+  c.logout_path = '/logout'
+end
+```
+
+Non-isolated engines don't need this override.
 
 ### 3. `config/initializers/activeadmin_oidc.rb` (generated)
 
