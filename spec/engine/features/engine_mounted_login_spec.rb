@@ -2,7 +2,7 @@
 
 require "engine_rails_helper"
 
-# Engine-mounted Devise + OIDC scenario (pbx-api / yeti-web pattern):
+# Engine-mounted Devise + OIDC scenario:
 #
 #   - AdminPanel::Engine is a non-isolated Rails engine
 #   - `devise_for :admin_users, ..., router_name: :admin_panel` lives
@@ -16,8 +16,8 @@ require "engine_rails_helper"
 # *inside the engine's route set*, otherwise
 # `AdminPanel::Engine.routes.url_helpers.new_admin_user_session_path`
 # stays undefined and host-side failure apps (Devise::FailureApp
-# subclasses that redirect via the engine's helpers, e.g. pbx-api's
-# `PbxDevise#redirect_url`) blow up with NoMethodError.
+# subclasses that redirect via the engine's helpers) blow up with
+# NoMethodError.
 RSpec.describe "Engine-mounted OIDC sessions" do
   it "AdminPanel::Engine.routes.url_helpers exposes new_admin_user_session_path" do
     expect {

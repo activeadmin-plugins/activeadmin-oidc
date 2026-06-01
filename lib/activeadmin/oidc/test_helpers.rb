@@ -75,8 +75,8 @@ module ActiveAdmin
     # `:omniauthable` isn't loaded, and toggles `CI_RUN_OIDC=true` to
     # run only OIDC specs in a focused CI job.
     #
-    # Hosts where OIDC is MANDATORY (yeti-web / pbx-api / didww-rs)
-    # skip the helper entirely and just include the module directly:
+    # Hosts where OIDC is MANDATORY skip the helper entirely and just
+    # include the module directly:
     #
     #   require "activeadmin/oidc/test_helpers"
     #
