@@ -63,52 +63,5 @@ module ActiveAdmin
         OmniAuth.config.request_validation_phase = @_oidc_saved_request_validation_phase if defined?(@_oidc_saved_request_validation_phase)
       end
     end
-
-    # Opt-in RSpec support for the `oidc_mode` tag.
-    #
-    # Hosts where OIDC is OPTIONAL (some envs run without an IdP) call:
-    #
-    #   require "activeadmin/oidc/test_helpers"
-    #   ActiveAdmin::Oidc::RSpecSupport.install!
-    #
-    # That installs auto-include + skips `oidc_mode: true` specs when
-    # `:omniauthable` isn't loaded, and toggles `CI_RUN_OIDC=true` to
-    # run only OIDC specs in a focused CI job.
-    #
-    # Hosts where OIDC is MANDATORY skip the helper entirely and just
-    # include the module directly:
-    #
-    #   require "activeadmin/oidc/test_helpers"
-    #
-    #   RSpec.configure do |c|
-    #     c.include ActiveAdmin::Oidc::TestHelpers
-    #     c.after { reset_oidc_stubs }
-    #   end
-    #
-    # No filter, no skip logic, no CI env var to remember.
-    module RSpecSupport
-      def self.install!
-        return unless defined?(RSpec)
-
-        RSpec.configure do |config|
-          config.include TestHelpers, oidc_mode: true
-          config.after(:each, :oidc_mode) { reset_oidc_stubs }
-
-          config.before(:each, :oidc_mode) do
-            admin_class = ActiveAdmin::Oidc.config.admin_user_class
-            klass = admin_class.is_a?(String) ? admin_class.safe_constantize : admin_class
-            unless klass.respond_to?(:devise_modules) && klass.devise_modules.include?(:omniauthable)
-              skip 'requires OIDC mode (run with config/oidc.yml in place and CI_RUN_OIDC=true)'
-            end
-          end
-
-          if ENV['CI_RUN_OIDC'].present?
-            config.filter_run_including oidc_mode: true
-          else
-            config.filter_run_excluding oidc_mode: true
-          end
-        end
-      end
-    end
   end
 end

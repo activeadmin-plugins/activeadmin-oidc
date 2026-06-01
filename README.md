@@ -293,33 +293,27 @@ stub_oidc_failure(:invalid_credentials)
 reset_oidc_stubs # call in an after hook
 ```
 
-Wire them up in `rails_helper.rb`:
+Wire them up in `rails_helper.rb`. The `oidc_mode: true` tag scopes the helpers and the cleanup hook to specs that actually need OIDC stubs:
 
 ```ruby
 require "activeadmin/oidc/test_helpers"
 
 RSpec.configure do |config|
-  config.include ActiveAdmin::Oidc::TestHelpers
-  config.after { reset_oidc_stubs }
+  config.include ActiveAdmin::Oidc::TestHelpers, oidc_mode: true
+  config.after(:each, :oidc_mode) { reset_oidc_stubs }
 end
 ```
 
-### Optional `oidc_mode:` tag filter
-
-For host apps where OIDC is optional (some envs run without an IdP / `config/oidc.yml`), the gem ships an opt-in RSpec filter that:
-
-* Includes `TestHelpers` only on specs tagged `oidc_mode: true`.
-* Skips those specs unless the AdminUser model has `:omniauthable` loaded.
-* Runs only OIDC-tagged specs when `CI_RUN_OIDC=true` is set (and excludes them otherwise) — useful for a dedicated CI job.
-
-Install it explicitly:
+Then in your specs:
 
 ```ruby
-require "activeadmin/oidc/test_helpers"
-ActiveAdmin::Oidc::RSpecSupport.install!
+RSpec.describe "OIDC sign-in", :oidc_mode do
+  it "signs in" do
+    stub_oidc_sign_in(claims: { "email" => "a@b.example" })
+    # ...
+  end
+end
 ```
-
-If OIDC is mandatory for your host app, skip the `install!` call and just include `TestHelpers` directly (above).
 
 ## License
 
