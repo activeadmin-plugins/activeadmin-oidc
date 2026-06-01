@@ -14,7 +14,7 @@ require "isolated_rails_helper"
 # Hosts in this layout must therefore configure
 # `ActiveAdmin::Oidc.config.login_path = '/login'` (engine-relative);
 # the gem then mounts at the correct effective path.
-RSpec.describe "Isolated engine OIDC sessions" do
+RSpec.feature "Isolated engine OIDC sessions", type: :feature do
   it "AdminPanel::Engine.routes.url_helpers exposes new_admin_user_session_path" do
     expect {
       AdminPanel::Engine.routes.url_helpers.new_admin_user_session_path
@@ -32,13 +32,9 @@ RSpec.describe "Isolated engine OIDC sessions" do
     expect(paths).to include(["GET", "/login(.:format)"])
   end
 
-  it "from the main app, GET /admin/login resolves through the mount prefix" do
-    main_paths = Rails.application.routes.routes.map { |r| r.path.spec.to_s }
-    expect(main_paths.any? { |p| p.include?("/admin") }).to be(true)
-  end
-
-  it "main app routes resolve GET /admin/login through the mounted engine" do
-    request = ActionDispatch::Request.new("PATH_INFO" => "/admin/login", "REQUEST_METHOD" => "GET")
-    expect { Rails.application.routes.router.recognize(request) {} }.not_to raise_error
+  scenario "Capybara visit to /admin/login (mount prefix + engine-relative path) renders the SSO landing page" do
+    visit "/admin/login"
+    expect(page.status_code).to eq(200)
+    expect(page.body).to include(ActiveAdmin::Oidc.config.login_button_label)
   end
 end

@@ -11,6 +11,11 @@ module AdminPanel
     # relative to the engine mount (e.g. `'/login'` when the engine
     # is mounted at `/admin` — otherwise the default `/admin/login`
     # becomes `/admin/admin/login` after mount prefixing).
+    # `config.root` is pinned to this file's directory so Rails picks
+    # up the engine's own `config/routes.rb` instead of defaulting to
+    # the dummy app's root.
+    config.root = __dir__
+
     isolate_namespace AdminPanel
 
     engine_name "admin_panel"

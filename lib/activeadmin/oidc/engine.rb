@@ -152,8 +152,12 @@ module ActiveAdmin
 
           Engine.session_routes_target(app).append do
             devise_scope scope_name do
-              get    login_path,  to: 'active_admin/devise/sessions#new',     as: :"new_#{scope_name}_session"
-              delete logout_path, to: 'active_admin/devise/sessions#destroy', as: :"destroy_#{scope_name}_session"
+              # Use the controller class directly via `.action(...)` so
+              # isolated engines don't try to resolve the controller as
+              # `<Engine>::ActiveAdmin::Devise::SessionsController` from
+              # the relative string form.
+              get    login_path,  to: ::ActiveAdmin::Devise::SessionsController.action(:new),     as: :"new_#{scope_name}_session"
+              delete logout_path, to: ::ActiveAdmin::Devise::SessionsController.action(:destroy), as: :"destroy_#{scope_name}_session"
             end
           end
         end
