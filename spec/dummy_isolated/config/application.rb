@@ -18,9 +18,9 @@ require "devise"
 require "activeadmin"
 require "activeadmin-oidc"
 
-# Mimic pbx-api / yeti-web pattern: an in-tree engine (non-isolated)
-# that mounts devise_for inside its own routes and pins Devise's URL
-# helpers to itself via `router_name: :admin_panel`.
+# Exercise the engine-mounted-Devise integration with an isolated
+# in-tree engine. devise_for + ActiveAdmin live inside the engine,
+# Devise's URL helpers are pinned to it via `router_name: :admin_panel`.
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 require "admin_panel"
 

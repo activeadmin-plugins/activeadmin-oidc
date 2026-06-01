@@ -131,11 +131,11 @@ module ActiveAdmin
       # lives on the same path with a different verb.
       #
       # Mount target follows `Devise.available_router_name`: hosts that
-      # mount Devise inside an engine (pbx-api / yeti-web pattern) set
-      # `Devise.router_name = :admin_panel`, which pins Devise URL
-      # helpers to `AdminPanel::Engine.routes`. We mount in the same
-      # route set so `<Engine>.routes.url_helpers.new_admin_user_session_path`
-      # resolves. Defaults to `Rails.application.routes` when unset.
+      # mount Devise inside an engine set `Devise.router_name = :admin_panel`,
+      # which pins Devise URL helpers to `AdminPanel::Engine.routes`. We
+      # mount in the same route set so
+      # `<Engine>.routes.url_helpers.new_admin_user_session_path` resolves.
+      # Defaults to `Rails.application.routes` when unset.
       initializer 'activeadmin_oidc.mount_oidc_sessions_routes' do |app|
         # after_initialize fires once at boot. `RouteSet#clear!` deliberately
         # preserves the append/prepend queues across reloads, so re-running
