@@ -18,7 +18,7 @@ require "engine_rails_helper"
 # stays undefined and host-side failure apps (Devise::FailureApp
 # subclasses that redirect via the engine's helpers) blow up with
 # NoMethodError.
-RSpec.describe "Engine-mounted OIDC sessions" do
+RSpec.feature "Engine-mounted OIDC sessions", type: :feature do
   it "AdminPanel::Engine.routes.url_helpers exposes new_admin_user_session_path" do
     expect {
       AdminPanel::Engine.routes.url_helpers.new_admin_user_session_path
@@ -36,9 +36,14 @@ RSpec.describe "Engine-mounted OIDC sessions" do
     expect(paths).to include(["GET", "/admin/login(.:format)"])
   end
 
-  it "Rails.application.routes does NOT define the session helpers (they live on the engine)" do
-    # Sanity check: if the gem mounted on the wrong route set the
-    # helper would appear here instead of on the engine.
-    expect(Rails.application.routes.url_helpers).not_to respond_to(:new_admin_user_session_path)
+  scenario "Capybara visit to /admin/login renders the SSO landing page" do
+    visit "/admin/login"
+    expect(page.status_code).to eq(200)
+    expect(page.body).to include(ActiveAdmin::Oidc.config.login_button_label)
+  end
+
+  scenario "/admin redirect from ActiveAdmin's authenticate_admin_user! lands on /admin/login" do
+    visit "/admin"
+    expect(page).to have_current_path("/admin/login")
   end
 end
