@@ -36,35 +36,19 @@ Without these, `/admin` is public to anyone and the utility navigation (includin
 
 ### 2. `app/models/admin_user.rb`
 
-For SSO-only setups (recommended — no local password login at all):
-
 ```ruby
 class AdminUser < ApplicationRecord
   devise :omniauthable, omniauth_providers: [:oidc]
 
-  serialize :oidc_raw_info, coder: JSON
+  serialize :oidc_raw_info, coder: JSON # Postgres jsonb: drop this line
 end
 ```
 
-The engine auto-mounts `/admin/login` (SSO landing page) and `/admin/logout` so ActiveAdmin's login link still resolves, even though Devise's `:database_authenticatable` isn't installed. The `encrypted_password` column is **not** required.
-
-If you also want password login alongside SSO, add the usual modules and column:
-
-```ruby
-class AdminUser < ApplicationRecord
-  devise :database_authenticatable,
-         :rememberable,
-         :omniauthable, omniauth_providers: [:oidc]
-
-  serialize :oidc_raw_info, coder: JSON
-end
-```
-
-In mixed mode Devise's own `devise_for` already maps `GET /admin/login` to its session controller. Because host routes are drawn before the gem's `after_initialize` append, Devise wins recognition for that path and renders its default sessions view (with both password form and OmniAuth links). The gem's auto-mount is a silent no-op — keep your custom `app/views/active_admin/devise/sessions/new.html.erb` if you want a specific landing UI.
+OIDC is the only authentication mechanism — `:database_authenticatable`, `encrypted_password`, and password reset / lockable / confirmable flows are not used. The IdP owns identity, recovery, MFA, and lockout. The engine auto-mounts `GET /admin/login` (SSO landing page) and `DELETE /admin/logout` so ActiveAdmin's login link still resolves without Devise's session routes.
 
 ### Engine-mounted Devise
 
-If `devise_for :admin_users` lives inside a Rails engine (not the main app routes), set `Devise.router_name = :<engine_name>` in `config/initializers/devise.rb`. The gem reads this and mounts its session routes inside that engine's route set so `<Engine>.routes.url_helpers.new_<scope>_session_path` resolves correctly.
+If `devise_for :admin_users` lives inside a Rails engine (not the main app routes), set `Devise.router_name = :<engine_name>` in `config/initializers/devise.rb` and pass the same option to `devise_for`. The gem reads `Devise.available_router_name` and mounts its session routes inside that engine's route set, so `<Engine>.routes.url_helpers.new_<scope>_session_path` resolves correctly.
 
 For **isolated** engines (`isolate_namespace ...`) mounted at a prefix (e.g. `mount AdminPanel::Engine => '/admin'`), the engine prepends its mount path to every internal route. The gem's default `login_path = '/admin/login'` would then become `/admin/admin/login`. Configure engine-relative paths in `config/initializers/activeadmin_oidc.rb`:
 
@@ -88,7 +72,7 @@ The gem's Rails engine handles several things so host apps don't have to:
 * **OmniAuth strategy registration** — the engine registers the `:openid_connect` strategy with Devise automatically based on your `ActiveAdmin::Oidc` configuration. You do **not** need to add `config.omniauth` or `config.omniauth_path_prefix` to `devise.rb`.
 * **Callback controller** — the engine patches `ActiveAdmin::Devise.controllers` to route OmniAuth callbacks to the gem's controller. No manual `controllers: { omniauth_callbacks: ... }` needed in `routes.rb`.
 * **Login view override** — the engine prepends an SSO-only login page (no email/password fields) to the sessions controller's view path. If your host app ships its own `app/views/active_admin/devise/sessions/new.html.erb`, the gem detects it and backs off — your view wins.
-* **Session routes** — the engine mounts `GET /admin/login` (renders the SSO landing page) and `DELETE /admin/logout` under the existing `devise_scope :admin_user`. Without these, hosts that omit `:database_authenticatable` would 404 on ActiveAdmin's redirect to `new_admin_user_session_path` (Devise only generates those routes as a side effect of `:database_authenticatable`).
+* **Session routes** — the engine mounts `GET /admin/login` (renders the SSO landing page) and `DELETE /admin/logout` under `devise_scope`, with the scope name derived from `config.admin_user_class`. Devise normally generates session routes as a side effect of `:database_authenticatable`; without that module the route helpers would not exist and ActiveAdmin's login redirect would 404.
 * **Path prefix** — the engine sets `Devise.omniauth_path_prefix` and `OmniAuth.config.path_prefix` to `/admin/auth` so the middleware intercepts requests under ActiveAdmin's mount point. Compatible with Rails 7.2+ and Rails 8's lazy route loading.
 * **Parameter filtering** — `code`, `id_token`, `access_token`, `refresh_token`, `state`, and `nonce` are added to `Rails.application.config.filter_parameters`.
 
@@ -263,7 +247,7 @@ AdminUser.last.oidc_raw_info
 
 ## Custom login view
 
-The gem ships a minimal SSO-only login page (a single button, no email/password fields). If you need a different layout — for instance, a combined SSO + password form for a break-glass mode — drop your own template at:
+The gem ships a minimal SSO-only login page (a single button, no email/password fields). If you need a different layout — for instance, different branding, an explanatory paragraph, or multiple OmniAuth strategies — drop your own template at:
 
 ```
 app/views/active_admin/devise/sessions/new.html.erb
@@ -298,6 +282,44 @@ The gem logs internal diagnostics (on_login exceptions, omniauth failures) via `
 ```ruby
 ActiveAdmin::Oidc.logger = MyStructuredLogger.new
 ```
+
+## Testing
+
+`require "activeadmin/oidc/test_helpers"` exposes `ActiveAdmin::Oidc::TestHelpers` with three methods for stubbing OmniAuth in specs:
+
+```ruby
+stub_oidc_sign_in(sub: "alice-sub", claims: { "email" => "alice@example.com", "roles" => ["admin"] })
+stub_oidc_failure(:invalid_credentials)
+reset_oidc_stubs # call in an after hook
+```
+
+Wire them up in `rails_helper.rb`:
+
+```ruby
+require "activeadmin/oidc/test_helpers"
+
+RSpec.configure do |config|
+  config.include ActiveAdmin::Oidc::TestHelpers
+  config.after { reset_oidc_stubs }
+end
+```
+
+### Optional `oidc_mode:` tag filter
+
+For host apps where OIDC is optional (some envs run without an IdP / `config/oidc.yml`), the gem ships an opt-in RSpec filter that:
+
+* Includes `TestHelpers` only on specs tagged `oidc_mode: true`.
+* Skips those specs unless the AdminUser model has `:omniauthable` loaded.
+* Runs only OIDC-tagged specs when `CI_RUN_OIDC=true` is set (and excludes them otherwise) — useful for a dedicated CI job.
+
+Install it explicitly:
+
+```ruby
+require "activeadmin/oidc/test_helpers"
+ActiveAdmin::Oidc::RSpecSupport.install!
+```
+
+If OIDC is mandatory for your host app, skip the `install!` call and just include `TestHelpers` directly (above).
 
 ## License
 
