@@ -35,9 +35,13 @@ module ActiveAdmin
     class InactiveError < ProvisioningError
       attr_reader :inactive_message_key
 
+      # Devise's default inactive_message is :inactive. Hosts can
+      # override the method and legitimately return nil on some
+      # branches; fall back to :inactive so the controller never
+      # ends up with an empty flash.
       def initialize(inactive_message_key)
-        @inactive_message_key = inactive_message_key
-        super(inactive_message_key.to_s)
+        @inactive_message_key = inactive_message_key.presence || :inactive
+        super(@inactive_message_key.to_s)
       end
     end
 
