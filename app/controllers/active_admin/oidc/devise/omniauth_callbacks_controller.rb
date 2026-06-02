@@ -74,14 +74,18 @@ module ActiveAdmin
           stored_location_for(resource) || '/admin'
         end
 
-        # Devise's default `after_omniauth_failure_path_for` calls
-        # `new_session_path(scope)`, a URL helper Devise only generates
-        # when :database_authenticatable mounts session routes. The
-        # engine mounts `new_<scope>_session_path` itself (see
-        # `mount_oidc_sessions_routes` initializer) regardless of which
-        # modules are loaded, so we always route through that helper.
+        # Devise's `new_session_path(scope)` is only generated when
+        # `:database_authenticatable` is in the mapping's `used_helpers`,
+        # so an OIDC-only model never gets it. The engine mounts
+        # `new_<scope>_session_path` itself, but the helper lives on
+        # whichever route set the mapping's `router_name` points at —
+        # main_app by default, or `<engine_name>` for hosts that mount
+        # Devise inside a Rails engine. Replicate Devise's own dispatch
+        # so the right context is asked.
         def after_omniauth_failure_path_for(scope)
-          public_send(:"new_#{scope}_session_path")
+          router_name = ::Devise.mappings[scope].router_name
+          context     = router_name ? send(router_name) : self
+          context.public_send(:"new_#{scope}_session_path")
         end
       end
     end
