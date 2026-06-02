@@ -42,9 +42,13 @@ module ActiveAdmin
           set_flash_message(:notice, :success, kind: 'OIDC') if is_navigational_format?
         rescue ActiveAdmin::Oidc::InactiveError => e
           Rails.logger.warn("[activeadmin-oidc] inactive: #{e.inactive_message_key}")
+          # Fall back to the standard `inactive` translation rather
+          # than the raw symbol — custom keys like :locked_by_admin
+          # would otherwise leak host-internal state into a flash
+          # visible to unauthenticated visitors.
           flash[:alert] = I18n.t(
             "devise.failure.#{e.inactive_message_key}",
-            default: e.inactive_message_key.to_s
+            default: I18n.t("devise.failure.inactive")
           )
           redirect_to after_omniauth_failure_path_for(resource_name)
         rescue ActiveAdmin::Oidc::ProvisioningError => e
