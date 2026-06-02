@@ -28,6 +28,19 @@ module ActiveAdmin
     class ProvisioningError < Error; end
     class RetryProvisioning < Error; end
 
+    # Raised when active_for_authentication? rejects the user. Carries
+    # the model's inactive_message symbol so the controller can
+    # translate it via I18n (devise.failure.<symbol>) instead of
+    # falling back to the generic denial flash.
+    class InactiveError < ProvisioningError
+      attr_reader :inactive_message_key
+
+      def initialize(inactive_message_key)
+        @inactive_message_key = inactive_message_key
+        super(inactive_message_key.to_s)
+      end
+    end
+
     class << self
       def config
         @config ||= Configuration.new

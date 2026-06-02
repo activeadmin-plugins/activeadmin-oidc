@@ -38,18 +38,15 @@ module ActiveAdmin
             provider: ActiveAdmin::Oidc::Engine::PROVIDER_NAME.to_s
           ).call
 
-          # Devise checks active_for_authentication? on session
-          # deserialization but NOT on initial OmniAuth sign-in.
-          # Guard here so disabled/locked users are rejected immediately.
-          unless admin_user.active_for_authentication?
-            message = admin_user.inactive_message
-            flash[:alert] = I18n.t("devise.failure.#{message}", default: message.to_s)
-            redirect_to after_omniauth_failure_path_for(resource_name)
-            return
-          end
-
           sign_in_and_redirect admin_user, event: :authentication
           set_flash_message(:notice, :success, kind: 'OIDC') if is_navigational_format?
+        rescue ActiveAdmin::Oidc::InactiveError => e
+          Rails.logger.warn("[activeadmin-oidc] inactive: #{e.inactive_message_key}")
+          flash[:alert] = I18n.t(
+            "devise.failure.#{e.inactive_message_key}",
+            default: e.inactive_message_key.to_s
+          )
+          redirect_to after_omniauth_failure_path_for(resource_name)
         rescue ActiveAdmin::Oidc::ProvisioningError => e
           Rails.logger.warn("[activeadmin-oidc] denial: #{e.message}")
           flash[:alert] = ActiveAdmin::Oidc.config.access_denied_message
