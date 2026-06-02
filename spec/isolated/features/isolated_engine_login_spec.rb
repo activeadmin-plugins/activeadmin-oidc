@@ -37,4 +37,23 @@ RSpec.feature "Isolated engine OIDC sessions", type: :feature do
     expect(page.status_code).to eq(200)
     expect(page.body).to include(ActiveAdmin::Oidc.config.login_button_label)
   end
+
+  context "OmniAuth failure path" do
+    around do |ex|
+      saved = OmniAuth.config.mock_auth[:oidc]
+      OmniAuth.config.mock_auth[:oidc] = :invalid_credentials
+      ex.run
+      OmniAuth.config.mock_auth[:oidc] = saved
+    end
+
+    scenario "failed OmniAuth callback lands back on the SSO landing page" do
+      # As in the non-isolated case, the failure handler must resolve
+      # the session helper through the engine — and via the isolated
+      # engine's mount prefix the effective path stays `/admin/login`
+      # because `config.login_path = '/login'` is engine-relative.
+      visit "/admin/login"
+      click_button ActiveAdmin::Oidc.config.login_button_label
+      expect(page).to have_current_path("/admin/login")
+    end
+  end
 end

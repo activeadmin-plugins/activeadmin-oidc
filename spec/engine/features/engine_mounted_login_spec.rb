@@ -46,4 +46,23 @@ RSpec.feature "Engine-mounted OIDC sessions", type: :feature do
     visit "/admin"
     expect(page).to have_current_path("/admin/login")
   end
+
+  context "OmniAuth failure path" do
+    around do |ex|
+      saved = OmniAuth.config.mock_auth[:oidc]
+      OmniAuth.config.mock_auth[:oidc] = :invalid_credentials
+      ex.run
+      OmniAuth.config.mock_auth[:oidc] = saved
+    end
+
+    scenario "failed OmniAuth callback lands back on the SSO landing page" do
+      # OmniauthCallbacksController#after_omniauth_failure_path_for has
+      # to resolve `new_<scope>_session_path` against the engine's
+      # route set (Devise.router_name pins helpers there) — calling the
+      # helper directly on the controller would raise NoMethodError.
+      visit "/admin/login"
+      click_button ActiveAdmin::Oidc.config.login_button_label
+      expect(page).to have_current_path("/admin/login")
+    end
+  end
 end
