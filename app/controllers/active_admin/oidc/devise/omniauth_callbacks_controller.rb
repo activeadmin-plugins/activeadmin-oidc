@@ -78,14 +78,18 @@ module ActiveAdmin
         # `:database_authenticatable` is in the mapping's `used_helpers`,
         # so an OIDC-only model never gets it. The engine mounts
         # `new_<scope>_session_path` itself, but the helper lives on
-        # whichever route set the mapping's `router_name` points at —
-        # main_app by default, or `<engine_name>` for hosts that mount
-        # Devise inside a Rails engine. Replicate Devise's own dispatch
-        # so the right context is asked.
+        # whichever route set Devise's URL helper dispatcher points at:
+        # the per-mapping `router_name` (set by
+        # `devise_for :scope, router_name: :engine`) when present,
+        # otherwise the global `Devise.available_router_name`
+        # (set by `Devise.router_name = :engine`), which defaults to
+        # `:main_app`. Replicate that dispatcher here so the helper is
+        # resolved on the right context (Rails.application proxy or
+        # mounted engine proxy).
         def after_omniauth_failure_path_for(scope)
-          router_name = ::Devise.mappings[scope].router_name
-          context     = router_name ? send(router_name) : self
-          context.public_send(:"new_#{scope}_session_path")
+          router_name = ::Devise.mappings[scope].router_name ||
+                        ::Devise.available_router_name
+          send(router_name).public_send(:"new_#{scope}_session_path")
         end
       end
     end
