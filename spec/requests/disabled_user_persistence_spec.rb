@@ -70,4 +70,34 @@ RSpec.describe "OIDC callback: disabled user not persisted", type: :request do
 
     expect(response).to redirect_to("/admin/login")
   end
+
+  # The HIGH #2 fix raised ProvisioningError when the hook flipped
+  # the inactivity flag, but the controller's generic rescue replaced
+  # the model's I18n-translated inactive_message with the generic
+  # access_denied_message. The disabled user lost the specific reason
+  # ("Your account has not been activated yet") and saw the catch-all
+  # denial flash instead. Surface the original reason via a dedicated
+  # error class.
+  it "shows the model's I18n-translated inactive_message in the flash" do
+    ActiveAdmin::Oidc.configure do |c|
+      c.issuer    = "https://idp.example.com"
+      c.client_id = "client-abc"
+      c.on_login  = lambda do |admin_user, _claims|
+        admin_user.enabled = false
+        true
+      end
+    end
+
+    OmniAuth.config.mock_auth[:oidc] =
+      build_auth_hash(uid: "mallory-sub", email: "mallory@example.com")
+
+    expected = I18n.t("devise.failure.inactive")
+
+    post "/admin/auth/oidc"
+    follow_redirect! if response.redirect? # OmniAuth → /callback → our controller
+
+    expect(flash[:alert]).to eq(expected),
+      "expected the disabled user to see Devise's translated inactive " \
+      "message, but the controller used the generic denial flash"
+  end
 end

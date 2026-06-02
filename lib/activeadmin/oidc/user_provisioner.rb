@@ -53,9 +53,11 @@ module ActiveAdmin
         # the record. Hostile attempts where on_login flips an
         # inactivity flag (e.g. enabled=false) would otherwise leave
         # provisional rows in the DB on every try. Refuse before
-        # persisting.
+        # persisting. Raise the dedicated InactiveError so the
+        # controller can surface the model's I18n inactive_message
+        # instead of the generic denial flash.
         unless admin_user.active_for_authentication?
-          raise ProvisioningError, admin_user.inactive_message.to_s
+          raise InactiveError, admin_user.inactive_message
         end
 
         save!(admin_user)
