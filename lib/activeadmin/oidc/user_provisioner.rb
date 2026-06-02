@@ -35,10 +35,28 @@ module ActiveAdmin
         validate_claims!
 
         admin_user = find_or_adopt_or_build
+
+        # Retry path: a concurrent first sign-in inserted between our
+        # initial miss-and-build and our failed save. Return the
+        # winner's row verbatim — on_login already ran on our (now
+        # discarded) in-memory build, and re-firing it would double
+        # any host-side side effects (audit log, webhook, email).
+        return admin_user if @retried
+
         assign_base_attributes(admin_user)
 
         allowed = invoke_on_login(admin_user)
         raise ProvisioningError, denial_message unless allowed
+
+        # Devise's `active_for_authentication?` guard runs in the
+        # controller post-sign-in, but by then we've already saved
+        # the record. Hostile attempts where on_login flips an
+        # inactivity flag (e.g. enabled=false) would otherwise leave
+        # provisional rows in the DB on every try. Refuse before
+        # persisting.
+        unless admin_user.active_for_authentication?
+          raise ProvisioningError, admin_user.inactive_message.to_s
+        end
 
         save!(admin_user)
         admin_user
@@ -82,6 +100,19 @@ module ActiveAdmin
           if identity_match.provider.present? || identity_match.uid.present?
             raise ProvisioningError,
                   "Identity #{identity_value.inspect} is already linked to a different account (takeover guard)"
+          end
+
+          # Adoption of a pre-existing row (provider/uid still nil) by
+          # an IdP-supplied identity value is a privilege-escalation
+          # vector when the IdP allows external / unverified emails:
+          # an attacker registers `ceo@example.com` at the IdP and
+          # adopts the seeded admin row. Refuse when the IdP explicitly
+          # marks the claim as unverified. (Absent claim → unchanged
+          # behaviour, since many IdPs don't ship `email_verified` at
+          # all.)
+          if @claims["email_verified"] == false
+            raise ProvisioningError,
+                  "Identity #{identity_value.inspect} is not verified by the IdP — refusing adoption"
           end
 
           identity_match.provider = @provider
