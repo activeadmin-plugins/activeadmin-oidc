@@ -33,7 +33,10 @@ Gem::Specification.new do |spec|
   # Rails 8 lazy route loading without an engine-side workaround.
   spec.add_dependency "devise",                 "~> 5.0"
   spec.add_dependency "omniauth",               "~> 2.1"
-  spec.add_dependency "omniauth-rails_csrf_protection", "~> 1.0"
+  # omniauth-rails_csrf_protection 2.0 dropped the legacy
+  # Rails 4 support code but kept the same OmniAuth API surface
+  # the gem uses; both 1.x and 2.x are compatible.
+  spec.add_dependency "omniauth-rails_csrf_protection", ">= 1.0", "< 3"
   # 0.6.x → openid_connect 1.x (httpclient-based, no faraday dep).
   # 0.7.x+ → openid_connect 2.x (faraday 2.x). Host apps still on faraday 1.x
   # need 0.6.x. activeadmin-oidc only uses the standard OmniAuth strategy
