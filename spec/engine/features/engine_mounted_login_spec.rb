@@ -5,19 +5,18 @@ require "engine_rails_helper"
 # Engine-mounted Devise + OIDC scenario:
 #
 #   - AdminPanel::Engine is a non-isolated Rails engine
-#   - `devise_for :admin_users, ..., router_name: :admin_panel` lives
-#     inside the engine's routes
-#   - `Devise.router_name = :admin_panel` pins Devise's URL helpers to
-#     `AdminPanel::Engine.routes`
+#   - `devise_for :admin_users` (NO `router_name:` option) lives inside
+#     the engine's routes
+#   - `Devise.router_name = :admin_panel` is set globally in the
+#     devise initializer — this pins Devise's URL helpers to the
+#     engine via `Devise.available_router_name` rather than the
+#     per-mapping option
 #
-# With AdminUser also OIDC-only (`devise :omniauthable`, no
-# `:database_authenticatable`), Devise generates no session routes.
-# activeadmin-oidc has to mount `/admin/login` and `/admin/logout`
-# *inside the engine's route set*, otherwise
-# `AdminPanel::Engine.routes.url_helpers.new_admin_user_session_path`
-# stays undefined and host-side failure apps (Devise::FailureApp
-# subclasses that redirect via the engine's helpers) blow up with
-# NoMethodError.
+# The global-only setup is the more common pattern in real hosts. The
+# OmniauthCallbacks failure handler must therefore fall back to
+# `Devise.available_router_name` when `Devise.mappings[scope].router_name`
+# is nil — calling the helper directly on the controller blows up
+# because the helper lives on the engine proxy, not on main_app.
 RSpec.feature "Engine-mounted OIDC sessions", type: :feature do
   it "AdminPanel::Engine.routes.url_helpers exposes new_admin_user_session_path" do
     expect {
@@ -47,7 +46,15 @@ RSpec.feature "Engine-mounted OIDC sessions", type: :feature do
     expect(page).to have_current_path("/admin/login")
   end
 
-  context "OmniAuth failure path" do
+  context "OmniAuth failure path under global Devise.router_name" do
+    # Sanity-check the dummy setup so a future refactor that flips it
+    # back to per-mapping `router_name:` makes the regression scenario
+    # below stop covering the global-only code path explicitly.
+    it "dummy_engine has no per-mapping router_name (relies on the global setting)" do
+      expect(Devise.mappings[:admin_user].router_name).to be_nil
+      expect(Devise.available_router_name.to_sym).to eq(:admin_panel)
+    end
+
     around do |ex|
       saved = OmniAuth.config.mock_auth[:oidc]
       OmniAuth.config.mock_auth[:oidc] = :invalid_credentials
@@ -58,8 +65,12 @@ RSpec.feature "Engine-mounted OIDC sessions", type: :feature do
     scenario "failed OmniAuth callback lands back on the SSO landing page" do
       # OmniauthCallbacksController#after_omniauth_failure_path_for has
       # to resolve `new_<scope>_session_path` against the engine's
-      # route set (Devise.router_name pins helpers there) — calling the
-      # helper directly on the controller would raise NoMethodError.
+      # route set. When the host pins helpers via the GLOBAL
+      # `Devise.router_name = :admin_panel` (no per-mapping option),
+      # `Devise.mappings[scope].router_name` is nil and the handler has
+      # to fall back to `Devise.available_router_name` to find the
+      # engine proxy — otherwise it tries the helper on the controller
+      # itself and raises NoMethodError.
       visit "/admin/login"
       click_button ActiveAdmin::Oidc.config.login_button_label
       expect(page).to have_current_path("/admin/login")
