@@ -2,17 +2,13 @@
 
 require "rails_helper"
 
-# Failing spec for HIGH #2 — disabled user persistence.
+# Disabled-user provisioning behaviour.
 #
-# UserProvisioner#save! runs BEFORE OmniauthCallbacksController#oidc
-# checks `active_for_authentication?`. If the on_login hook flips a
-# user's `enabled` flag (or any other Devise inactivity guard) and
-# returns truthy, the gem still persists the record — only then does
-# the controller reject the sign-in. Repeated hostile attempts leave
-# a growing pile of provisional AdminUser rows.
-#
-# Acceptance criterion: a user the host hook marks inactive must NOT
-# be persisted to the database.
+# UserProvisioner must enforce `active_for_authentication?` BEFORE
+# `save!`. If the on_login hook flips a user's inactivity flag (e.g.
+# `enabled = false`) and returns truthy, the gem must NOT persist
+# the record — otherwise repeated hostile attempts grow the table
+# with provisional rows that can never sign in.
 RSpec.describe "OIDC callback: disabled user not persisted", type: :request do
   let(:uid)   { "mallory-sub" }
   let(:email) { "mallory@example.com" }
@@ -65,13 +61,14 @@ RSpec.describe "OIDC callback: disabled user not persisted", type: :request do
     expect(response).to redirect_to(new_admin_user_session_path)
   end
 
-  # Code-review followup: the original retry short-circuit
-  # (`return admin_user if @retried`) skipped the
-  # `active_for_authentication?` guard. If a host-side trigger
-  # flips the winner's row to inactive between the concurrent
-  # insert and our retry read, the loser thread used to sign in
-  # silently. Enforce the same Devise inactivity guard on the
-  # retry leg.
+  # The retry short-circuit (`return admin_user if @retried`) skips
+  # the `active_for_authentication?` guard in the provisioner. If a
+  # host-side trigger flips the winner's row to inactive between the
+  # concurrent insert and our retry read, the loser thread would
+  # sign in silently — except Devise's after_set_user callback also
+  # checks active_for_authentication? and intercepts. This spec
+  # pins that safety net so a future refactor can't quietly remove
+  # it.
   it "rejects an inactive winner row on the retry leg" do
     ActiveAdmin::Oidc.config.on_login = noop_hook
 
@@ -104,13 +101,10 @@ RSpec.describe "OIDC callback: disabled user not persisted", type: :request do
       "retry leg signed in an inactive winner row — active_for_authentication? was skipped"
   end
 
-  # The HIGH #2 fix raised ProvisioningError when the hook flipped
-  # the inactivity flag, but the controller's generic rescue replaced
-  # the model's I18n-translated inactive_message with the generic
-  # access_denied_message. The disabled user lost the specific reason
-  # ("Your account has not been activated yet") and saw the catch-all
-  # denial flash instead. Surface the original reason via a dedicated
-  # error class.
+  # The flash for a disabled user must carry Devise's translated
+  # inactive_message ("Your account is not activated yet."), not the
+  # gem's generic access_denied_message — otherwise users lose the
+  # specific reason for the rejection.
   it "shows the model's I18n-translated inactive_message in the flash" do
     post_callback
     expect(flash[:alert]).to eq(I18n.t("devise.failure.inactive")),
@@ -118,12 +112,11 @@ RSpec.describe "OIDC callback: disabled user not persisted", type: :request do
       "message, but the controller used the generic denial flash"
   end
 
-  # Code-review followup: if a host's inactive_message returns nil
-  # (legal Devise return shape — `super` returns :inactive but a
-  # subclass may legitimately return nil for other inactivity
-  # branches) the InactiveError used to carry "" as its key, which
-  # collapsed to I18n.t("devise.failure.") and rendered an empty
-  # flash. Default to :inactive so the user always sees a reason.
+  # A host's override may legitimately return nil from
+  # inactive_message on some branches (Devise itself returns :inactive
+  # from the base, but a subclass overriding for custom branches can
+  # return nil). The flash must still carry a reason, not collapse to
+  # I18n.t("devise.failure.") = "".
   it "defaults to :inactive when the model's inactive_message is blank" do
     allow_any_instance_of(AdminUser).to receive(:inactive_message).and_return(nil)
     post_callback
@@ -131,12 +124,10 @@ RSpec.describe "OIDC callback: disabled user not persisted", type: :request do
       "blank inactive_message produced an empty flash"
   end
 
-  # Code-review followup: when the model returns a custom symbol
-  # whose translation is missing (e.g. :locked_by_admin with no
-  # devise.failure.locked_by_admin key), the controller used to
-  # render the raw symbol name to an unauthenticated visitor —
-  # leaking host-internal state. Fall back to the standard inactive
-  # translation instead.
+  # If the model returns a custom symbol with no translation (e.g.
+  # :locked_by_admin without a devise.failure.locked_by_admin key),
+  # the raw symbol name must NOT land in the flash visible to
+  # unauthenticated visitors — it would leak host-internal state.
   it "hides custom inactive_message symbols when the translation is missing" do
     allow_any_instance_of(AdminUser).to receive(:inactive_message).and_return(:locked_by_admin)
     post_callback
