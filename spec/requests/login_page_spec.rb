@@ -37,4 +37,18 @@ RSpec.describe "Login page", type: :request do
 
     expect(response.body).to include(ActiveAdmin::Oidc::Configuration::DEFAULT_LOGIN_BUTTON_LABEL)
   end
+
+  # Regression: AA v3's formtastic stylesheet targets
+  # `#login input[type="submit"]`, so a <button type="submit"> stays
+  # unstyled (defaults to the dark browser/AA button). Switching to
+  # button_to in the AA v3 branch silently regresses the themed blue
+  # SSO button to a dark default. Lock the v3 view to submit_tag.
+  it "renders the SSO button as an <input type=submit> on AA v3" do
+    skip "AA v4+ branch uses button_to with Tailwind classes" if ActiveAdmin::Oidc.aa_v4?
+
+    get "/admin/login"
+
+    expect(response.body).to match(/<input[^>]+type="submit"[^>]+value="[^"]*SSO[^"]*"/)
+    expect(response.body).not_to match(/<button[^>]+type="submit"/)
+  end
 end
