@@ -70,10 +70,18 @@ RSpec.feature "Engine-mounted OIDC sessions", type: :feature do
       # `Devise.mappings[scope].router_name` is nil and the handler has
       # to fall back to `Devise.available_router_name` to find the
       # engine proxy — otherwise it tries the helper on the controller
-      # itself and raises NoMethodError.
+      # itself and raises NoMethodError (500 response → driver
+      # exception, not a clean redirect).
       visit "/admin/login"
       click_button ActiveAdmin::Oidc.config.login_button_label
+
+      # Full Capybara assertions: real path + rendered DOM state. If
+      # the failure handler had raised, Capybara would never reach the
+      # `page` assertions — but we also check the SSO button + flash
+      # so a silent redirect to the wrong place can't pass either.
       expect(page).to have_current_path("/admin/login")
+      expect(page).to have_button(ActiveAdmin::Oidc.config.login_button_label)
+      expect(page).to have_content(ActiveAdmin::Oidc.config.access_denied_message)
     end
   end
 end
