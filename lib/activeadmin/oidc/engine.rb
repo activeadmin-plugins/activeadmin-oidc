@@ -156,8 +156,24 @@ module ActiveAdmin
               # isolated engines don't try to resolve the controller as
               # `<Engine>::ActiveAdmin::Devise::SessionsController` from
               # the relative string form.
-              get    login_path,  to: ::ActiveAdmin::Devise::SessionsController.action(:new),     as: :"new_#{scope_name}_session"
-              delete logout_path, to: ::ActiveAdmin::Devise::SessionsController.action(:destroy), as: :"destroy_#{scope_name}_session"
+              get login_path, to: ::ActiveAdmin::Devise::SessionsController.action(:new), as: :"new_#{scope_name}_session"
+
+              # Mirror what AA's own Devise integration does in
+              # lib/active_admin/devise.rb: accept whichever HTTP
+              # methods Devise.sign_out_via and
+              # ActiveAdmin.application.logout_link_method combine to.
+              # Read at route-draw time (not in the enclosing
+              # after_initialize) so `Rails.application.reload_routes!`
+              # picks up host changes to either value — useful for
+              # specs that stub the setting and re-evaluate routes.
+              # AA 4 dropped `logout_link_method` (its layout uses
+              # `button_to` + Turbo), so only consult the setting when
+              # the version still exposes it.
+              aa_app = ::ActiveAdmin.application
+              aa_method = aa_app.logout_link_method if aa_app.respond_to?(:logout_link_method)
+              logout_via = [*::Devise.sign_out_via, aa_method].compact.uniq
+
+              match logout_path, to: ::ActiveAdmin::Devise::SessionsController.action(:destroy), as: :"destroy_#{scope_name}_session", via: logout_via
             end
           end
         end
