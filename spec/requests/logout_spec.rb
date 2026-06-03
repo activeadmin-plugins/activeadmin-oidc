@@ -62,4 +62,29 @@ RSpec.describe "Logout", type: :request do
       expect(response).to redirect_to("/admin/login")
     end
   end
+
+  # The mounted route should accept whichever HTTP method
+  # `ActiveAdmin.application.logout_link_method` is set to, mirroring
+  # what AA's own Devise integration does in
+  # `lib/active_admin/devise.rb`:
+  #
+  #   sign_out_via: [*::Devise.sign_out_via, ActiveAdmin.application.logout_link_method].uniq
+  #
+  # Hardcoding DELETE-only meant AA hosts that kept AA's default
+  # `logout_link_method = :get` (the vast majority) 404'd on every
+  # Sign Out click: the rendered `<a data-method="get">` link goes
+  # through rails-ujs and lands on a route the gem never mounted for
+  # GET.
+  context "with AA's default logout_link_method (:get)" do
+    before { sign_in admin_user }
+
+    it "accepts GET /admin/logout" do
+      get "/admin/logout"
+
+      expect(response).to be_redirect
+
+      get "/admin"
+      expect(response).to redirect_to("/admin/login")
+    end
+  end
 end
