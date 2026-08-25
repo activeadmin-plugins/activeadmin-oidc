@@ -50,16 +50,25 @@ OIDC is the only authentication mechanism — `:database_authenticatable`, `encr
 
 If `devise_for :admin_users` lives inside a Rails engine (not the main app routes), set `Devise.router_name = :<engine_name>` in `config/initializers/devise.rb` and pass the same option to `devise_for`. The gem reads `Devise.available_router_name` and mounts its session routes inside that engine's route set, so `<Engine>.routes.url_helpers.new_<scope>_session_path` resolves correctly.
 
-For **isolated** engines (`isolate_namespace ...`) mounted at a prefix (e.g. `mount AdminPanel::Engine => '/admin'`), the engine prepends its mount path to every internal route. The gem's default `login_path = '/admin/login'` would then become `/admin/admin/login`. Configure engine-relative paths in `config/initializers/activeadmin_oidc.rb`:
+For **isolated** engines (`isolate_namespace ...`) mounted at a prefix (e.g. `mount AdminPanel::Engine => '/admin'`), the engine prepends its mount path to every internal route, so the derived `login_path` of `/admin/login` would become `/admin/admin/login`. Configure engine-relative paths in `config/initializers/activeadmin_oidc.rb`:
 
 ```ruby
 ActiveAdmin::Oidc.configure do |c|
-  c.login_path  = '/login'
-  c.logout_path = '/logout'
+  c.login_path            = '/login'
+  c.logout_path           = '/logout'
+  c.omniauth_route_prefix = '/auth'
 end
 ```
 
-Non-isolated engines don't need this override.
+`omniauth_route_prefix` is the same idea applied to the routes Devise draws for
+OmniAuth. It is separate from `omniauth_path_prefix` because the two are not the
+same string here: the OmniAuth middleware sits in the *application's* Rack stack
+and sees `/admin/auth/oidc` with the mount prefix still attached, while the route
+Devise declares for the callback is inside the engine and gets `/admin` prepended
+to it. Set only `omniauth_path_prefix` and the callback route lands on
+`/admin/admin/auth/oidc/callback`, so the redirect the middleware issues 404s.
+
+Non-isolated engines mounted at `/` don't need any of these overrides.
 
 ### 3. `config/initializers/activeadmin_oidc.rb` (generated)
 
@@ -73,7 +82,7 @@ The gem's Rails engine handles several things so host apps don't have to:
 * **Callback controller** — the engine patches `ActiveAdmin::Devise.controllers` to route OmniAuth callbacks to the gem's controller. No manual `controllers: { omniauth_callbacks: ... }` needed in `routes.rb`.
 * **Login view override** — the engine prepends an SSO-only login page (no email/password fields) to the sessions controller's view path. If your host app ships its own `app/views/active_admin/devise/sessions/new.html.erb`, the gem detects it and backs off — your view wins.
 * **Session routes** — the engine mounts `GET /admin/login` (renders the SSO landing page) and `DELETE /admin/logout` under `devise_scope`, with the scope name derived from `config.admin_user_class`. Devise normally generates session routes as a side effect of `:database_authenticatable`; without that module the route helpers would not exist and ActiveAdmin's login redirect would 404.
-* **Path prefix** — the engine sets `Devise.omniauth_path_prefix` and `OmniAuth.config.path_prefix` to `/admin/auth` so the middleware intercepts requests under ActiveAdmin's mount point. Compatible with Rails 7.2+ and Rails 8's lazy route loading.
+* **Path prefix** — the engine registers the strategy with `path_prefix: '/admin/auth'` so the middleware intercepts requests under ActiveAdmin's mount point, and sets `Devise.omniauth_path_prefix` to the prefix Devise declares its routes with. Compatible with Rails 7.2+ and Rails 8's lazy route loading.
 * **Parameter filtering** — `code`, `id_token`, `access_token`, `refresh_token`, `state`, and `nonce` are added to `Rails.application.config.filter_parameters`.
 
 ## Configuration
@@ -133,9 +142,38 @@ end
 | `identity_attribute` | `:email` | AdminUser column used for lookup/adoption |
 | `identity_claim` | `:email` | Claim key read from the id_token/userinfo |
 | `admin_user_class` | `"AdminUser"` | String or Class for the host's admin user model |
+| `login_path` | `/<namespace>/login` | SSO landing page path; derived from ActiveAdmin's namespace |
+| `logout_path` | `/<namespace>/logout` | Sign-out path; derived from ActiveAdmin's namespace |
+| `omniauth_path_prefix` | `/<namespace>/auth` | Browser-visible path the OmniAuth middleware listens on; derived from ActiveAdmin's namespace |
+| `omniauth_route_prefix` | `omniauth_path_prefix` | Prefix Devise declares its OmniAuth routes with; differs only for engine-mounted hosts |
 | `login_button_label` | `"Sign in with SSO"` | Label on the login-page button |
 | `access_denied_message` | generic | Flash shown on any denial |
 | `on_login` | — (required) | Authorization hook; see below |
+
+## ActiveAdmin's namespace
+
+Everything the gem mounts hangs off ActiveAdmin's namespace, and all of it is
+derived from `ActiveAdmin.application.default_namespace` rather than assumed to
+be `admin`. A host that renames it:
+
+```ruby
+# config/initializers/active_admin.rb
+config.default_namespace = :backoffice
+```
+
+gets `/backoffice/login`, `/backoffice/logout`, the OmniAuth middleware at
+`/backoffice/auth`, and a post-sign-in redirect to `/backoffice` — no gem
+configuration needed. ActiveAdmin's root namespace (`config.default_namespace =
+false`) mounts everything at the top level: `/login`, `/auth`, `/`.
+
+Each is still overridable. Isolated engines *have* to override them, since the
+engine's mount prefix is prepended to every path declared inside it — see
+[Engine-mounted Devise](#engine-mounted-devise).
+
+`omniauth_route_prefix` is what the gem assigns to `Devise.omniauth_path_prefix`,
+and it is skipped entirely if your app already assigned that in
+`config/initializers/devise.rb`. `omniauth_path_prefix` is passed to the OmniAuth
+strategy directly, so it stays correct regardless.
 
 ## The `on_login` hook
 
@@ -241,7 +279,7 @@ AdminUser.last.oidc_raw_info
 
 * A login button is added to the ActiveAdmin sessions page via a prepended view override — no templates to edit.
 * Clicking it POSTs to `/admin/auth/oidc` with a Rails CSRF token. The gem loads `omniauth-rails_csrf_protection` so OmniAuth 2.x delegates its authenticity check to Rails' forgery protection and `button_to` just works.
-* After a successful callback the user is signed in and redirected to `/admin` (not the host app's `/`, which may not exist).
+* After a successful callback the user is signed in and redirected to ActiveAdmin's namespace root (not the host app's `/`, which may not exist). The path comes from ActiveAdmin's own route helper, so a renamed `config.default_namespace` or an engine-mounted ActiveAdmin lands correctly; `/admin` is only the fallback when that helper cannot be resolved.
 * **Disabled/locked users are rejected.** Devise's `active_for_authentication?` is checked after provisioning but before sign-in. If your model overrides this method (e.g. to check an `enabled` flag or Devise's `:lockable` module), the guard fires on OIDC sign-in too — the user sees an appropriate flash and is redirected to the login page.
 * Logout goes through Devise's stock session destroy. No RP-initiated single-logout ping to the IdP — override the destroy action in your host app if you need that.
 

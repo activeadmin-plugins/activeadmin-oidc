@@ -10,4 +10,10 @@ ActiveAdmin::Oidc.configure do |c|
   # would become `/admin/admin/login`. Use relative paths instead.
   c.login_path  = "/login"
   c.logout_path = "/logout"
+
+  # Same reason, for the routes Devise draws for OmniAuth. The
+  # middleware still listens on the browser-visible `/admin/auth`
+  # (the derived `omniauth_path_prefix`); only the route declaration
+  # is engine-relative.
+  c.omniauth_route_prefix = "/auth"
 end

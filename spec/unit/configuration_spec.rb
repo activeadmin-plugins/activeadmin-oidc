@@ -115,6 +115,80 @@ RSpec.describe ActiveAdmin::Oidc::Configuration do
     end
   end
 
+  describe "paths derived from ActiveAdmin's namespace" do
+    # `default_namespace` is one of ActiveAdmin's dynamically defined
+    # settings, so a verifying double refuses it.
+    def with_namespace(namespace)
+      without_partial_double_verification do
+        allow(ActiveAdmin).to receive(:application)
+          .and_return(double("ActiveAdmin::Application", default_namespace: namespace))
+        yield
+      end
+    end
+
+    it "follows a renamed default_namespace" do
+      with_namespace(:backoffice) do
+        expect(config.login_path).to eq("/backoffice/login")
+        expect(config.logout_path).to eq("/backoffice/logout")
+        expect(config.omniauth_path_prefix).to eq("/backoffice/auth")
+      end
+    end
+
+    it "mounts at the top level for ActiveAdmin's root namespace" do
+      with_namespace(:root) do
+        expect(config.login_path).to eq("/login")
+        expect(config.omniauth_path_prefix).to eq("/auth")
+      end
+    end
+
+    it "treats a blank namespace as the root namespace" do
+      with_namespace(false) { expect(config.login_path).to eq("/login") }
+    end
+
+    it "keeps an explicit override, which isolated engines depend on" do
+      config.login_path  = "/login"
+      config.logout_path = "/logout"
+
+      with_namespace(:backoffice) do
+        expect(config.login_path).to eq("/login")
+        expect(config.logout_path).to eq("/logout")
+        # ...without dragging the derived prefix along with it.
+        expect(config.omniauth_path_prefix).to eq("/backoffice/auth")
+      end
+    end
+
+    it "defaults omniauth_route_prefix to omniauth_path_prefix" do
+      with_namespace(:backoffice) do
+        expect(config.omniauth_route_prefix).to eq("/backoffice/auth")
+      end
+    end
+
+    # Engine-mounted hosts split the two: the middleware sees the
+    # browser-visible path, Devise declares its routes engine-relative.
+    it "lets omniauth_route_prefix be overridden independently" do
+      config.omniauth_route_prefix = "/auth"
+
+      with_namespace(:admin) do
+        expect(config.omniauth_path_prefix).to eq("/admin/auth")
+        expect(config.omniauth_route_prefix).to eq("/auth")
+      end
+    end
+
+    # Library code has to stay callable with no ActiveAdmin around at
+    # all (unit specs, scripts). Driven by raising rather than by the
+    # absence of the constant, so it holds whether or not another spec
+    # in the same process has booted the dummy app.
+    it "falls back to /admin when ActiveAdmin cannot be consulted" do
+      without_partial_double_verification do
+        allow(ActiveAdmin).to receive(:application).and_raise(NoMethodError)
+      end
+
+      expect(config.login_path).to eq("/admin/login")
+      expect(config.logout_path).to eq("/admin/logout")
+      expect(config.omniauth_path_prefix).to eq("/admin/auth")
+    end
+  end
+
   describe "#pkce" do
     it "defaults to true when client_secret is blank" do
       config.client_secret = nil

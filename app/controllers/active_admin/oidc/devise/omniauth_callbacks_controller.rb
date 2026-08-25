@@ -69,28 +69,53 @@ module ActiveAdmin
         # sign-in instead of Devise's default (host app root). Hosts
         # that don't define a `/` route would otherwise hit a routing
         # error immediately after login, and even when `/` does exist
-        # it's rarely what an admin user wants to see. ActiveAdmin
-        # always mounts at `/admin`, so we go there directly.
+        # it's rarely what an admin user wants to see.
         def after_sign_in_path_for(resource)
-          stored_location_for(resource) || '/admin'
+          stored_location_for(resource) || active_admin_root_path
+        end
+
+        # Resolved from ActiveAdmin's own route helper rather than
+        # assumed to be '/admin'. Two things move it: a host can rename
+        # the namespace (`config.default_namespace = :backoffice`), and
+        # an engine-mounted ActiveAdmin prefixes every path it declares
+        # with the engine's mount point -- so the real root can be
+        # '/admin/admin' or anything else entirely. Routing a signed-in
+        # admin to a 404 is a poor reward for a successful login.
+        def active_admin_root_path
+          send(devise_router_name(resource_name)).public_send(active_admin_root_helper)
+        rescue NameError, ::ActionController::UrlGenerationError
+          # The host has ActiveAdmin's routes somewhere we can't see (or
+          # hasn't drawn them at all). Its namespace prefix is the best
+          # remaining guess at where the admin panel lives -- except for
+          # the root namespace, where that prefix is '' and would make an
+          # empty, unredirectable Location.
+          ActiveAdmin::Oidc.config.active_admin_namespace_prefix.presence || '/'
+        end
+
+        # ActiveAdmin names its namespace root helper `<namespace>_root_path`,
+        # except for the root namespace where it is plain `root_path`.
+        def active_admin_root_helper
+          namespace = ActiveAdmin::Oidc.config.active_admin_namespace
+          namespace ? :"#{namespace}_root_path" : :root_path
         end
 
         # Devise's `new_session_path(scope)` is only generated when
         # `:database_authenticatable` is in the mapping's `used_helpers`,
         # so an OIDC-only model never gets it. The engine mounts
-        # `new_<scope>_session_path` itself, but the helper lives on
-        # whichever route set Devise's URL helper dispatcher points at:
-        # the per-mapping `router_name` (set by
-        # `devise_for :scope, router_name: :engine`) when present,
-        # otherwise the global `Devise.available_router_name`
-        # (set by `Devise.router_name = :engine`), which defaults to
-        # `:main_app`. Replicate that dispatcher here so the helper is
-        # resolved on the right context (Rails.application proxy or
-        # mounted engine proxy).
+        # `new_<scope>_session_path` itself, but on whichever route set
+        # `devise_router_name` resolves to.
         def after_omniauth_failure_path_for(scope)
-          router_name = ::Devise.mappings[scope].router_name ||
-                        ::Devise.available_router_name
-          send(router_name).public_send(:"new_#{scope}_session_path")
+          send(devise_router_name(scope)).public_send(:"new_#{scope}_session_path")
+        end
+
+        # Devise's URL helpers live on the per-mapping `router_name` (set
+        # by `devise_for :scope, router_name: :engine`) when present,
+        # otherwise on the global `Devise.available_router_name` (set by
+        # `Devise.router_name = :engine`), which defaults to `:main_app`.
+        # Replicate that dispatcher here so helpers resolve on the right
+        # context (Rails.application proxy or mounted engine proxy).
+        def devise_router_name(scope)
+          ::Devise.mappings[scope]&.router_name || ::Devise.available_router_name
         end
       end
     end

@@ -1,7 +1,7 @@
 <div id="login">
   <h2><%%= active_admin_application.site_title(self) %></h2>
 
-  <%%= form_tag "#{OmniAuth.config.path_prefix}/oidc",
+  <%%= form_tag "#{ActiveAdmin::Oidc.config.omniauth_path_prefix}/oidc",
                method: :post,
                class: "activeadmin-oidc-login-form formtastic",
                data: { turbo: false } do %>
