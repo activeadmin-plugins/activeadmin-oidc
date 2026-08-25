@@ -3,6 +3,6 @@
 --color
 # `bundle exec rspec` runs the default suite (spec/dummy). The engine-
 # and isolated-engine suites each boot their own dummy Rails app and
-# must run in separate processes — invoke them via `rake spec:engine`,
-# `rake spec:isolated`, or all three with `rake spec:all`.
+# must run in separate processes — invoke them via `rake spec:engine`
+# and `rake spec:isolated`, or all three with `rake spec:all`.
 --exclude-pattern "spec/{engine,isolated,dummy_engine,dummy_isolated}/**/*"

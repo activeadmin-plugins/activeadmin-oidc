@@ -4,7 +4,7 @@
   </h2>
 
   <%%= button_to ActiveAdmin::Oidc.config.login_button_label,
-       "#{OmniAuth.config.path_prefix}/oidc",
+       "#{ActiveAdmin::Oidc.config.omniauth_path_prefix}/oidc",
        method: :post,
        class: "activeadmin-oidc-login-button w-full",
        form_class: 'formtastic',
