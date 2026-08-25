@@ -21,9 +21,12 @@
 /spec/dummy_engine/tmp/
 /spec/dummy_isolated/log/
 /spec/dummy_isolated/tmp/
+/spec/dummy_namespaced/log/
+/spec/dummy_namespaced/tmp/
 
 # The dummy app's database.yml is checked in — override a global
 # ignore rule that excludes "database.yml" everywhere by default.
 !/spec/dummy/config/database.yml
 !/spec/dummy_engine/config/database.yml
 !/spec/dummy_isolated/config/database.yml
+!/spec/dummy_namespaced/config/database.yml

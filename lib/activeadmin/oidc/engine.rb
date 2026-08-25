@@ -7,6 +7,12 @@ module ActiveAdmin
     class Engine < ::Rails::Engine
       PROVIDER_NAME = :oidc
 
+      # True once the host has supplied the minimum OIDC credentials.
+      def self.configured?
+        cfg = ActiveAdmin::Oidc.config
+        cfg.issuer.present? && cfg.client_id.present?
+      end
+
       # True when the host's AdminUser model includes :omniauthable.
       # Used to gate controller registration and view overrides so the
       # gem is a no-op when OIDC is not enabled on the model.
@@ -77,21 +83,36 @@ module ActiveAdmin
       # Automatically register the OmniAuth :openid_connect strategy with
       # Devise when the gem is configured, so host apps don't have to
       # duplicate the config.omniauth boilerplate in devise.rb.
-      # Runs before Devise's own initializer so the strategy is available
-      # when the model calls `devise :omniauthable`.
-      initializer 'activeadmin_oidc.register_omniauth_strategy', before: 'devise.omniauth' do
+      #
+      # Ordered after the host's config/initializers (where
+      # `ActiveAdmin.setup` and `Devise.setup` live, so the namespace and
+      # any explicit host overrides are readable) and before
+      # `devise.omniauth`, which both needs the strategy registered and
+      # builds the middleware from these args.
+      #
+      # `path_prefix` is passed per-strategy rather than left to
+      # `OmniAuth.config.path_prefix`, because Devise overwrites that
+      # global at route-draw time with `Devise.omniauth_path_prefix` --
+      # the value it *declares its routes* with, which for a mounted
+      # engine is the same path minus the mount prefix. Setting the two
+      # independently through the global is impossible: Devise raises
+      # "Wrong OmniAuth configuration" whenever they disagree.
+      initializer 'activeadmin_oidc.register_omniauth_strategy',
+                  after: :load_config_initializers, before: 'devise.omniauth' do
         cfg = ActiveAdmin::Oidc.config
-        next if cfg.issuer.blank? || cfg.client_id.blank?
+        next unless Engine.configured?
 
         require 'omniauth_openid_connect'
 
-        ::Devise.setup do |devise|
-          # ActiveAdmin mounts Devise under /admin, so OmniAuth middleware
-          # must intercept /admin/auth/:provider.
-          devise.omniauth_path_prefix ||= '/admin/auth'
+        # `||=` semantics preserved: a host that set the prefix in its
+        # own devise.rb keeps it. Read by Devise when the routes are
+        # drawn, which happens later still.
+        ::Devise.omniauth_path_prefix ||= cfg.omniauth_route_prefix
 
+        ::Devise.setup do |devise|
           devise.omniauth :openid_connect,
                           name: PROVIDER_NAME,
+                          path_prefix: cfg.omniauth_path_prefix,
                           scope: (cfg.scope || 'openid email profile').split,
                           response_type: :code,
                           issuer: cfg.issuer,
@@ -106,15 +127,6 @@ module ActiveAdmin
                             host: nil
                           }.compact
         end
-
-        # Devise propagates omniauth_path_prefix to
-        # OmniAuth.config.path_prefix during route generation
-        # (set_omniauth_path_prefix!). On Rails 8 routes load lazily,
-        # so the OmniAuth middleware may process requests before routes
-        # are drawn and miss the prefix. Set it eagerly here.
-        # Must happen AFTER `devise.omniauth` because that call
-        # triggers autoload of devise/omniauth which nils the value.
-        ::OmniAuth.config.path_prefix = ::Devise.omniauth_path_prefix
       end
 
       initializer 'activeadmin_oidc.filter_parameters' do |app|

@@ -25,7 +25,7 @@ begin
     end
 
     desc "Run every spec suite (default + engine + isolated)"
-    task all: [:spec, :engine, :isolated]
+    task all: %i[spec engine isolated]
   end
 
   task default: :spec
