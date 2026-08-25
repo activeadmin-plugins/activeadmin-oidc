@@ -113,6 +113,84 @@ RSpec.describe ActiveAdmin::Oidc::Configuration do
       config.on_login = "not a proc"
       expect { config.validate! }.to raise_error(ActiveAdmin::Oidc::ConfigurationError, /on_login/)
     end
+
+    context "with stub login enabled" do
+      # A developer machine using only stub login has no IdP credentials
+      # to give, so requiring them would force fake values into the
+      # initializer just to boot.
+      it "stops requiring issuer and client_id" do
+        config.stub_login_enabled = true
+        config.issuer    = nil
+        config.client_id = nil
+
+        expect { config.validate! }.not_to raise_error
+      end
+
+      it "still requires on_login, which stub sign-ins also run through" do
+        config.stub_login_enabled = true
+        config.on_login = nil
+
+        expect { config.validate! }.to raise_error(ActiveAdmin::Oidc::ConfigurationError, /on_login/)
+      end
+    end
+  end
+
+  describe "stub login configuration" do
+    it "is disabled by default" do
+      expect(config.stub_login_enabled?).to be(false)
+    end
+
+    it "defaults to claims that satisfy the default identity_claim" do
+      expect { config.validate_stub_login! }.not_to raise_error
+    end
+
+    it "stringifies symbol keys so the claims match what on_login receives" do
+      config.stub_login_claims = { sub: "s-1", email: "dev@example.com" }
+
+      expect(config.resolved_stub_login_claims)
+        .to eq("sub" => "s-1", "email" => "dev@example.com")
+    end
+
+    it "calls a callable on every read, so the identity can come from ENV" do
+      calls = 0
+      config.stub_login_claims = lambda {
+        calls += 1
+        { "sub" => "s-#{calls}", "email" => "dev#{calls}@example.com" }
+      }
+
+      expect(config.resolved_stub_login_claims["sub"]).to eq("s-1")
+      expect(config.resolved_stub_login_claims["sub"]).to eq("s-2")
+    end
+
+    it "rejects claims without a sub" do
+      expect { config.validate_stub_login!("email" => "dev@example.com") }
+        .to raise_error(ActiveAdmin::Oidc::ConfigurationError, /sub/)
+    end
+
+    it "rejects claims missing the configured identity_claim" do
+      config.identity_claim = :username
+
+      expect { config.validate_stub_login!("sub" => "s-1", "email" => "dev@example.com") }
+        .to raise_error(ActiveAdmin::Oidc::ConfigurationError, /username/)
+    end
+
+    it "accepts claims carrying a non-default identity_claim" do
+      config.identity_claim = :username
+
+      expect { config.validate_stub_login!("sub" => "s-1", "username" => "dev") }
+        .not_to raise_error
+    end
+  end
+
+  describe "#sso_configured?" do
+    it "is true only when both issuer and client_id are present" do
+      config.issuer    = "https://example.com"
+      config.client_id = "abc"
+      expect(config.sso_configured?).to be(true)
+
+      config.client_id = nil
+      expect(config.sso_configured?).to be(false)
+    end
   end
 
   describe "#pkce" do

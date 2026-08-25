@@ -21,6 +21,33 @@ ActiveAdmin::Oidc.configure do |c|
   # --- Login button label ----------------------------------------------
   # c.login_button_label = "Sign in with Corporate SSO"
 
+  # --- Stub login (development only) ------------------------------------
+  # Adds a second button to the login page that signs in with locally
+  # fabricated claims instead of redirecting to the IdP. Nothing is
+  # automatic: the login page still renders and you still click. Useful
+  # when the IdP does not know your local redirect URI -- a non-default
+  # port, or two apps sharing one OIDC client.
+  #
+  # The claims run through the normal pipeline, `on_login` included, so
+  # authorization behaves exactly as it will against the real IdP.
+  # Boot fails if this is enabled in the production environment.
+  #
+  # c.stub_login_enabled = Rails.env.development?
+  #
+  # Claims the stub button signs in with -- the same hash `on_login`
+  # receives. Must contain "sub" and your `identity_claim`. Add whatever
+  # else your `on_login` hook reads (roles, groups, department...).
+  # Accepts a Hash, or a callable evaluated per request:
+  #
+  #   c.stub_login_claims = -> { { "sub" => ENV.fetch("DEV_USER"), ... } }
+  #
+  # c.stub_login_claims = {
+  #   "sub"   => "stub-uid",
+  #   "email" => "stub@example.com"
+  # }
+  #
+  # c.stub_login_button_label = "Sign in as a developer"
+
   # --- on_login hook ---------------------------------------------------
   # Called with (admin_user, claims) after identity lookup and before
   # save. Mutate admin_user in place, return truthy to allow sign-in,

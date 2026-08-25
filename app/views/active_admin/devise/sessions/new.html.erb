@@ -4,23 +4,62 @@
       <%= site_title %> <%= set_page_title t('active_admin.devise.login.title') %>
     </h2>
 
-    <%= button_to ActiveAdmin::Oidc.config.login_button_label,
-                  "#{OmniAuth.config.path_prefix}/oidc",
-                  method: :post,
-                  class: "activeadmin-oidc-login-button w-full",
-                  form_class: 'formtastic',
-                  data: { turbo: false } %>
+    <% if activeadmin_oidc_sso_configured? || !activeadmin_oidc_stub_login_enabled? %>
+      <%= button_to ActiveAdmin::Oidc.config.login_button_label,
+                    activeadmin_oidc_sso_login_path,
+                    method: :post,
+                    class: "activeadmin-oidc-login-button w-full",
+                    form_class: 'formtastic',
+                    data: { turbo: false } %>
+    <% end %>
+
+    <% if activeadmin_oidc_stub_login_enabled? %>
+      <div class="activeadmin-oidc-stub-login border border-red-400 bg-red-50 text-red-900 rounded-md p-3 space-y-2 dark:bg-red-900/30 dark:border-red-700 dark:text-red-100">
+        <p class="text-sm font-semibold">Stub login is enabled</p>
+        <p class="text-sm">
+          The button below signs in as
+          <strong><%= activeadmin_oidc_stub_login_identity || '(unconfigured identity)' %></strong>
+          without contacting the identity provider. Never enable this outside development.
+        </p>
+        <%= button_to ActiveAdmin::Oidc.config.stub_login_button_label,
+                      activeadmin_oidc_stub_login_path,
+                      method: :post,
+                      class: "activeadmin-oidc-stub-login-button w-full",
+                      form_class: 'formtastic',
+                      data: { turbo: false } %>
+      </div>
+    <% end %>
   </div>
 <% else %>
   <div id="login">
     <h2><%= active_admin_application.site_title(self) %></h2>
 
-    <%= form_tag "#{OmniAuth.config.path_prefix}/oidc",
-                 method: :post,
-                 class: "activeadmin-oidc-login-form formtastic",
-                 data: { turbo: false } do %>
-      <%= submit_tag ActiveAdmin::Oidc.config.login_button_label,
-                     class: "activeadmin-oidc-login-button" %>
+    <% if activeadmin_oidc_sso_configured? || !activeadmin_oidc_stub_login_enabled? %>
+      <%= form_tag activeadmin_oidc_sso_login_path,
+                   method: :post,
+                   class: "activeadmin-oidc-login-form formtastic",
+                   data: { turbo: false } do %>
+        <%= submit_tag ActiveAdmin::Oidc.config.login_button_label,
+                       class: "activeadmin-oidc-login-button" %>
+      <% end %>
+    <% end %>
+
+    <% if activeadmin_oidc_stub_login_enabled? %>
+      <div class="activeadmin-oidc-stub-login" style="margin-top:1em;padding:0.75em;border:1px solid #c00;background:#fff3f3;color:#900">
+        <p style="margin:0 0 0.5em;font-weight:bold">Stub login is enabled</p>
+        <p style="margin:0 0 0.75em">
+          The button below signs in as
+          <strong><%= activeadmin_oidc_stub_login_identity || '(unconfigured identity)' %></strong>
+          without contacting the identity provider. Never enable this outside development.
+        </p>
+        <%= form_tag activeadmin_oidc_stub_login_path,
+                     method: :post,
+                     class: "activeadmin-oidc-stub-login-form formtastic",
+                     data: { turbo: false } do %>
+          <%= submit_tag ActiveAdmin::Oidc.config.stub_login_button_label,
+                         class: "activeadmin-oidc-stub-login-button" %>
+        <% end %>
+      </div>
     <% end %>
   </div>
 <% end %>
