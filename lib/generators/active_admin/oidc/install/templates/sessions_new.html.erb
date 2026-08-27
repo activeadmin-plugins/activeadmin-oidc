@@ -1,34 +1,20 @@
+<%# Development stub login. The submit path switches to the stub
+    route while ActiveAdmin::Oidc.config.stub_dev_env_login! is on,
+    which only ever happens in the development environment. %>
 <div id="login">
   <h2><%= active_admin_application.site_title(self) %></h2>
 
-  <% if activeadmin_oidc_sso_configured? || !activeadmin_oidc_stub_login_enabled? %>
-    <%= form_tag activeadmin_oidc_sso_login_path,
-                 method: :post,
-                 class: "activeadmin-oidc-login-form formtastic",
-                 data: { turbo: false } do %>
-      <%= submit_tag ActiveAdmin::Oidc.config.login_button_label,
-                     class: "activeadmin-oidc-login-button" %>
-    <% end %>
+  <% if ActiveAdmin::Oidc.config.stub_dev_env_login_enabled? %>
+    <p class="activeadmin-oidc-stub-login" style="margin-top:1em;padding:0.75em;border:1px solid #c00;background:#fff3f3;color:#900;font-weight:bold">
+      Stub login is enabled: the button below signs in without contacting the identity provider.
+    </p>
   <% end %>
 
-  <%# Development stub login. Renders only when
-      ActiveAdmin::Oidc.config.stub_login_enabled is true and the env is
-      not production. Delete this block if you never want the button. %>
-  <% if activeadmin_oidc_stub_login_enabled? %>
-    <div class="activeadmin-oidc-stub-login" style="margin-top:1em;padding:0.75em;border:1px solid #c00;background:#fff3f3;color:#900">
-      <p style="margin:0 0 0.5em;font-weight:bold">Stub login is enabled</p>
-      <p style="margin:0 0 0.75em">
-        The button below signs in as
-        <strong><%= activeadmin_oidc_stub_login_identity || '(unconfigured identity)' %></strong>
-        without contacting the identity provider. Never enable this outside development.
-      </p>
-      <%= form_tag activeadmin_oidc_stub_login_path,
-                   method: :post,
-                   class: "activeadmin-oidc-stub-login-form formtastic",
-                   data: { turbo: false } do %>
-        <%= submit_tag ActiveAdmin::Oidc.config.stub_login_button_label,
-                       class: "activeadmin-oidc-stub-login-button" %>
-      <% end %>
-    </div>
+  <%= form_tag ActiveAdmin::Oidc.config.login_submit_path,
+               method: :post,
+               class: "activeadmin-oidc-login-form formtastic",
+               data: { turbo: false } do %>
+    <%= submit_tag ActiveAdmin::Oidc.config.login_button_label,
+                   class: "activeadmin-oidc-login-button" %>
   <% end %>
 </div>

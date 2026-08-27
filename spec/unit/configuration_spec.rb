@@ -114,82 +114,102 @@ RSpec.describe ActiveAdmin::Oidc::Configuration do
       expect { config.validate! }.to raise_error(ActiveAdmin::Oidc::ConfigurationError, /on_login/)
     end
 
-    context "with stub login enabled" do
-      # A developer machine using only stub login has no IdP credentials
-      # to give, so requiring them would force fake values into the
-      # initializer just to boot.
-      it "stops requiring issuer and client_id" do
-        config.stub_login_enabled = true
-        config.issuer    = nil
-        config.client_id = nil
-
-        expect { config.validate! }.not_to raise_error
-      end
-
-      it "still requires on_login, which stub sign-ins also run through" do
-        config.stub_login_enabled = true
-        config.on_login = nil
-
-        expect { config.validate! }.to raise_error(ActiveAdmin::Oidc::ConfigurationError, /on_login/)
-      end
-    end
   end
 
   describe "stub login configuration" do
     it "is disabled by default" do
-      expect(config.stub_login_enabled?).to be(false)
+      expect(config.stub_dev_env_login_enabled?).to be(false)
     end
 
-    it "defaults to claims that satisfy the default identity_claim" do
-      expect { config.validate_stub_login! }.not_to raise_error
+    it "refuses to enable outside the development environment" do
+      expect(config.stub_dev_env_login!).to be(false)
+      expect(config.stub_dev_env_login_enabled?).to be(false)
     end
 
-    it "stringifies symbol keys so the claims match what on_login receives" do
-      config.stub_login_claims = { sub: "s-1", email: "dev@example.com" }
+    context "in the development environment" do
+      before do
+        allow(Rails).to receive(:env).and_return(
+          ActiveSupport::StringInquirer.new("development")
+        )
+      end
 
-      expect(config.resolved_stub_login_claims)
-        .to eq("sub" => "s-1", "email" => "dev@example.com")
-    end
+      it "enables without a block" do
+        expect(config.stub_dev_env_login!).to be(true)
+        expect(config.stub_dev_env_login_enabled?).to be(true)
+        expect(config.stub_dev_env_login_claims_block).to be_nil
+      end
 
-    it "calls a callable on every read, so the identity can come from ENV" do
-      calls = 0
-      config.stub_login_claims = lambda {
-        calls += 1
-        { "sub" => "s-#{calls}", "email" => "dev#{calls}@example.com" }
-      }
+      it "defaults to claims that satisfy the default identity_claim" do
+        config.stub_dev_env_login!
 
-      expect(config.resolved_stub_login_claims["sub"]).to eq("s-1")
-      expect(config.resolved_stub_login_claims["sub"]).to eq("s-2")
-    end
+        expect(config.stub_dev_env_login_claims)
+          .to eq("sub" => "stub-uid", "email" => "stub-dev@example.com")
+      end
 
-    it "rejects claims without a sub" do
-      expect { config.validate_stub_login!("email" => "dev@example.com") }
-        .to raise_error(ActiveAdmin::Oidc::ConfigurationError, /sub/)
-    end
+      it "passes the default claims to the block and uses what it returns" do
+        config.stub_dev_env_login! { |claims| claims.merge("groups" => ["admins"]) }
 
-    it "rejects claims missing the configured identity_claim" do
-      config.identity_claim = :username
+        expect(config.stub_dev_env_login_claims).to eq(
+          "sub" => "stub-uid", "email" => "stub-dev@example.com", "groups" => ["admins"]
+        )
+      end
 
-      expect { config.validate_stub_login!("sub" => "s-1", "email" => "dev@example.com") }
-        .to raise_error(ActiveAdmin::Oidc::ConfigurationError, /username/)
-    end
+      it "accepts a block that mutates the claims instead of returning them" do
+        # `claims["groups"] = [...]` as a last line returns the assigned
+        # value, not the Hash.
+        config.stub_dev_env_login! { |claims| claims["groups"] = ["admins"] }
 
-    it "accepts claims carrying a non-default identity_claim" do
-      config.identity_claim = :username
+        expect(config.stub_dev_env_login_claims).to eq(
+          "sub" => "stub-uid", "email" => "stub-dev@example.com", "groups" => ["admins"]
+        )
+      end
 
-      expect { config.validate_stub_login!("sub" => "s-1", "username" => "dev") }
-        .not_to raise_error
+      it "stringifies nested symbol keys so the claims match what on_login receives" do
+        config.stub_dev_env_login! { |claims| claims.merge(roles: { admin: true }) }
+
+        expect(config.stub_dev_env_login_claims["roles"]).to eq("admin" => true)
+      end
+
+      it "never lets the block mutate the defaults" do
+        config.stub_dev_env_login! { |claims| claims["email"] = "dev@example.com"; claims }
+        config.stub_dev_env_login_claims
+
+        expect(described_class::DEFAULT_STUB_DEV_ENV_LOGIN_CLAIMS)
+          .to eq("sub" => "stub-uid", "email" => "stub-dev@example.com")
+      end
+
+      it "calls the block on every read, so the identity can come from ENV" do
+        calls = 0
+        config.stub_dev_env_login! do |claims|
+          calls += 1
+          claims.merge("email" => "dev#{calls}@example.com")
+        end
+
+        expect(config.stub_dev_env_login_claims["email"]).to eq("dev1@example.com")
+        expect(config.stub_dev_env_login_claims["email"]).to eq("dev2@example.com")
+      end
+
+      it "is cleared by reset!" do
+        config.stub_dev_env_login!
+        config.reset!
+
+        expect(config.stub_dev_env_login_enabled?).to be(false)
+        expect(config.stub_dev_env_login_claims_block).to be_nil
+      end
     end
   end
 
-  describe "#sso_configured?" do
-    it "is true only when both issuer and client_id are present" do
-      config.issuer    = "https://example.com"
-      config.client_id = "abc"
-      expect(config.sso_configured?).to be(true)
+  describe "#login_submit_path" do
+    it "points at the OmniAuth entry point when stub login is off" do
+      expect(config.login_submit_path)
+        .to eq("#{OmniAuth.config.path_prefix}/oidc")
+    end
 
-      config.client_id = nil
-      expect(config.sso_configured?).to be(false)
+    it "points at the stub route, derived from login_path, when stub login is on" do
+      allow(config).to receive(:stub_dev_env_login_enabled?).and_return(true)
+      config.login_path = "/admin/login"
+
+      expect(config.login_submit_path).to eq("/admin/login/stub")
     end
   end
 

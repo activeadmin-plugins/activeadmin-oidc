@@ -13,10 +13,9 @@ module ActiveAdmin
         'Your account has no permission to access this admin panel.'
       DEFAULT_LOGIN_PATH  = '/admin/login'
       DEFAULT_LOGOUT_PATH = '/admin/logout'
-      DEFAULT_STUB_LOGIN_BUTTON_LABEL = 'Sign in with stub login (no IdP)'
-      DEFAULT_STUB_LOGIN_CLAIMS = {
+      DEFAULT_STUB_DEV_ENV_LOGIN_CLAIMS = {
         'sub'   => 'stub-uid',
-        'email' => 'stub@example.com'
+        'email' => 'stub-dev@example.com'
       }.freeze
 
       attr_accessor :issuer, :client_id, :client_secret, :scope,
@@ -24,9 +23,13 @@ module ActiveAdmin
                     :login_button_label, :timeout,
                     :identity_attribute, :identity_claim,
                     :access_denied_message, :on_login, :admin_user_class,
-                    :login_path, :logout_path,
-                    :stub_login_enabled, :stub_login_claims,
-                    :stub_login_button_label
+                    :login_path, :logout_path
+
+      # Readers, not writers: stub login is turned on through
+      # `stub_dev_env_login!` so the environment check cannot be skipped.
+      # Specs (this gem's own included) stub these two instead of
+      # pretending to run in the development environment.
+      attr_reader :stub_dev_env_login_claims_block
 
       def initialize
         reset!
@@ -48,9 +51,8 @@ module ActiveAdmin
         @logout_path           = DEFAULT_LOGOUT_PATH
         @on_login              = nil
         @pkce_override         = nil
-        @stub_login_enabled    = false
-        @stub_login_claims     = DEFAULT_STUB_LOGIN_CLAIMS
-        @stub_login_button_label = DEFAULT_STUB_LOGIN_BUTTON_LABEL
+        @stub_dev_env_login = false
+        @stub_dev_env_login_claims_block = nil
         self
       end
 
@@ -64,53 +66,63 @@ module ActiveAdmin
         @pkce_override = value
       end
 
-      def stub_login_enabled?
-        !!@stub_login_enabled
-      end
+      # Turns on the development stub login: the login page's button
+      # signs in with locally fabricated claims instead of redirecting to
+      # the IdP. For machines whose redirect URI the IdP does not know --
+      # a non-default port, or two apps sharing one OIDC client.
+      #
+      # A no-op outside the development environment, so there is nothing
+      # to guard at boot and nothing to flip off before a deploy.
+      #
+      # The optional block receives the default claims and returns the
+      # claims to sign in with, so a host whose `on_login` reads roles or
+      # groups can satisfy it:
+      #
+      #   c.stub_dev_env_login! { |claims| claims.merge('groups' => ADMIN_GROUP) }
+      #
+      # The claims go through the same UserProvisioner as a real
+      # callback, so a block that does not satisfy `on_login` is denied
+      # exactly as the real IdP would deny it.
+      def stub_dev_env_login!(&block)
+        return false unless ::Rails.env.development?
 
-      # True when there is enough configuration to start a real
-      # authorization code flow. Stub-login-only setups (a dev machine
-      # with no IdP credentials at all) deliberately leave these blank,
-      # and the login view hides the SSO button rather than rendering
-      # one that 404s.
-      def sso_configured?
-        issuer.present? && client_id.present?
-      end
-
-      # `stub_login_claims` may be a Hash or any callable returning one
-      # (so hosts can read ENV per request and switch dev identities
-      # without editing the initializer). Always returns String keys,
-      # the same shape `on_login` receives.
-      def resolved_stub_login_claims
-        raw = stub_login_claims
-        raw = raw.call if raw.respond_to?(:call)
-        (raw || {}).to_h.transform_keys(&:to_s)
-      end
-
-      # The stub claims go through the same UserProvisioner as a real
-      # callback, which needs `sub` and the configured identity claim.
-      # Checking here (at boot for Hash claims, per request for
-      # callables) turns a misconfiguration into a readable message
-      # instead of the provisioner's generic access-denied flash.
-      def validate_stub_login!(claims = resolved_stub_login_claims)
-        if claims['sub'].blank?
-          raise ConfigurationError, 'stub_login_claims must contain a "sub" value'
-        end
-
-        key = identity_claim.to_s
-        if claims[key].blank?
-          raise ConfigurationError,
-                "stub_login_claims must contain #{key.inspect} (the configured identity_claim)"
-        end
-
+        @stub_dev_env_login = true
+        @stub_dev_env_login_claims_block = block
         true
       end
 
-      def validate!
-        unless stub_login_enabled?
-          raise ConfigurationError, 'issuer is required'    if issuer.blank?
-          raise ConfigurationError, 'client_id is required' if client_id.blank?
+      def stub_dev_env_login_enabled?
+        @stub_dev_env_login
+      end
+
+      # Evaluated once per stub sign-in, in the controller. String keys
+      # all the way down, the same shape `on_login` receives from a real
+      # callback.
+      #
+      # The block may either return a Hash or mutate the one it is given
+      # -- `claims["groups"] = [...]` as a last line returns the assigned
+      # value, not the Hash, and that should not 500 the dev's login.
+      def stub_dev_env_login_claims
+        claims = DEFAULT_STUB_DEV_ENV_LOGIN_CLAIMS.dup
+        block  = stub_dev_env_login_claims_block
+        if block
+          returned = block.call(claims)
+          claims = returned if returned.is_a?(Hash)
         end
+        claims.deep_transform_keys(&:to_s)
+      end
+
+      # Where the login page's single button POSTs to: the stub route
+      # while stub login is on, the real OmniAuth entry point otherwise.
+      def login_submit_path
+        return "#{login_path}/stub" if stub_dev_env_login_enabled?
+
+        "#{::OmniAuth.config.path_prefix}/#{Engine::PROVIDER_NAME}"
+      end
+
+      def validate!
+        raise ConfigurationError, 'issuer is required'    if issuer.blank?
+        raise ConfigurationError, 'client_id is required' if client_id.blank?
         raise ConfigurationError, 'on_login is required'  if on_login.nil?
         raise ConfigurationError, 'on_login must be callable (respond to #call)' unless on_login.respond_to?(:call)
 

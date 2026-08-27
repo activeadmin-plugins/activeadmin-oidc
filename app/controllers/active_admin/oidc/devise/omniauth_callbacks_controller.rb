@@ -41,33 +41,28 @@ module ActiveAdmin
         # provisioning path as `#oidc` -- identity lookup, the takeover
         # guard, the host's `on_login` hook, oidc_raw_info, and the
         # active_for_authentication? check all still apply, so what works
-        # locally is what works against the real IdP.
+        # locally is what works against the real IdP. In particular, a
+        # claims block that does not satisfy `on_login` is denied here
+        # exactly as the real IdP would deny it.
         #
-        # The route only exists when stub login is enabled and the env is
-        # not production (see Engine), and boot fails outright if it is
-        # enabled in production. The check here is the last of those three
-        # layers, covering a flag flipped at runtime.
+        # The route only exists when stub login is enabled, and
+        # `stub_dev_env_login!` only enables it in the development
+        # environment. The check here covers a flag flipped at runtime.
         def stub
           cfg = ActiveAdmin::Oidc.config
-          unless cfg.stub_login_enabled? && !::Rails.env.production?
+          unless cfg.stub_dev_env_login_enabled?
             head :not_found
             return
           end
 
-          claims = cfg.resolved_stub_login_claims
-          cfg.validate_stub_login!(claims)
+          claims = cfg.stub_dev_env_login_claims
 
           ActiveAdmin::Oidc.logger.warn(
             "[activeadmin-oidc] STUB LOGIN used for sub=#{claims['sub'].inspect} " \
             '-- no identity provider was contacted.'
           )
 
-          provision_and_sign_in(claims)
-        rescue ActiveAdmin::Oidc::ConfigurationError => e
-          # Only reachable from a non-production env behind an enabled
-          # flag, so the real message is safe -- and necessary -- here.
-          flash[:alert] = "[activeadmin-oidc] stub login misconfigured: #{e.message}"
-          redirect_to after_omniauth_failure_path_for(resource_name)
+          provision_and_sign_in(claims, kind: 'stub login (no IdP)')
         end
 
         def failure
@@ -80,7 +75,7 @@ module ActiveAdmin
 
         # Shared tail of every sign-in path: turn a claims hash into a
         # persisted, signed-in admin user, or into a denial flash.
-        def provision_and_sign_in(claims)
+        def provision_and_sign_in(claims, kind: 'OIDC')
           admin_user = UserProvisioner.new(
             ActiveAdmin::Oidc.config,
             claims: claims,
@@ -88,7 +83,7 @@ module ActiveAdmin
           ).call
 
           sign_in_and_redirect admin_user, event: :authentication
-          set_flash_message(:notice, :success, kind: 'OIDC') if is_navigational_format?
+          set_flash_message(:notice, :success, kind: kind) if is_navigational_format?
         rescue ActiveAdmin::Oidc::InactiveError => e
           Rails.logger.warn("[activeadmin-oidc] inactive: #{e.inactive_message_key}")
           # Fall back to the standard `inactive` translation rather

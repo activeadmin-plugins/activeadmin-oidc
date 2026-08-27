@@ -155,12 +155,12 @@ RSpec.describe ActiveAdmin::Oidc::Generators::InstallGenerator do
     end
 
     it "includes the stub login block so the dev button still renders" do
-      expect(published_view).to include("activeadmin_oidc_stub_login_enabled?")
-      expect(published_view).to include("activeadmin_oidc_stub_login_path")
+      expect(published_view).to include("stub_dev_env_login_enabled?")
+      expect(published_view).to include("login_submit_path")
     end
 
-    it "posts the SSO button through the helper rather than a hardcoded path" do
-      expect(published_view).to include("activeadmin_oidc_sso_login_path")
+    it "posts through the config rather than a hardcoded path" do
+      expect(published_view).to include("ActiveAdmin::Oidc.config.login_submit_path")
     end
   end
 

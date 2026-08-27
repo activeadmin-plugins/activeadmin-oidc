@@ -70,13 +70,6 @@ module ActiveAdmin
               view_path = File.expand_path('../../../app/views', __dir__)
               ::ActiveAdmin::Devise::SessionsController.prepend_view_path(view_path)
             end
-
-            # Registered unconditionally, unlike the view path above: a
-            # host that ships its own login view still needs the helpers
-            # to render the SSO and stub-login buttons.
-            ::ActiveAdmin::Devise::SessionsController.helper(
-              ::ActiveAdmin::Oidc::ViewHelpers
-            )
           end
         end
       end
@@ -128,43 +121,6 @@ module ActiveAdmin
         app.config.filter_parameters |= %i[code id_token access_token refresh_token state nonce]
       end
 
-      # Stub login fabricates an authenticated admin session without ever
-      # talking to the IdP. That is a complete authentication bypass, so
-      # it is refused outright in the production environment — there is no
-      # override flag. Hosts running a production-like environment that
-      # genuinely needs the bypass must run it under its own Rails env.
-      #
-      # Registered as an after_initialize (not a plain engine initializer)
-      # because engine initializers run *before* the host's
-      # config/initializers, where `stub_login_enabled` is set.
-      initializer 'activeadmin_oidc.stub_login_guard' do |app|
-        app.config.after_initialize { Engine.enforce_stub_login_policy! }
-      end
-
-      # Extracted from the initializer above so it can be exercised
-      # directly in specs without booting a second application.
-      def self.enforce_stub_login_policy!
-        cfg = ActiveAdmin::Oidc.config
-        return false unless cfg.stub_login_enabled?
-
-        if ::Rails.env.production?
-          raise ConfigurationError,
-                'ActiveAdmin::Oidc stub_login_enabled is true in the production ' \
-                'environment. Stub login signs users in without contacting the ' \
-                'identity provider and must never be reachable in production.'
-        end
-
-        # Eager validation only for a literal Hash; callables are
-        # per-request by design and are validated in the controller.
-        cfg.validate_stub_login! unless cfg.stub_login_claims.respond_to?(:call)
-
-        ActiveAdmin::Oidc.logger.warn(
-          '[activeadmin-oidc] STUB LOGIN IS ENABLED. The login page offers a ' \
-          'button that signs in without contacting the identity provider.'
-        )
-        true
-      end
-
       # The gem is OIDC-first: mount our SSO landing page at /admin/login
       # and a warden-based /admin/logout under the existing devise scope.
       # Without these, hosts that omit :database_authenticatable have no
@@ -189,12 +145,15 @@ module ActiveAdmin
         app.config.after_initialize do
           next unless Engine.oidc_enabled?
 
-          cfg         = ActiveAdmin::Oidc.config
-          login_path  = cfg.login_path
-          logout_path = cfg.logout_path
-          scope_name  = Engine.admin_user_class.model_name.singular.to_sym
-
           Engine.session_routes_target(app).append do
+            # Read at draw time (not in the enclosing after_initialize)
+            # so `Rails.application.reload_routes!` picks up host changes
+            # to any of them.
+            cfg         = ActiveAdmin::Oidc.config
+            login_path  = cfg.login_path
+            logout_path = cfg.logout_path
+            scope_name  = Engine.admin_user_class.model_name.singular.to_sym
+
             devise_scope scope_name do
               # Use the controller class directly via `.action(...)` so
               # isolated engines don't try to resolve the controller as
@@ -219,21 +178,20 @@ module ActiveAdmin
 
               match logout_path, to: ::ActiveAdmin::Devise::SessionsController.action(:destroy), as: :"destroy_#{scope_name}_session", via: logout_via
 
-              # Development stub login. Read the flag here (draw time)
-              # rather than in the enclosing after_initialize so
-              # `Rails.application.reload_routes!` reflects config
-              # changes — and so the route simply does not exist when
-              # the feature is off. The production check duplicates the
-              # boot guard above on purpose: this is an auth bypass, and
-              # a route that is never drawn cannot be probed.
-              if ActiveAdmin::Oidc.config.stub_login_enabled? && !::Rails.env.production?
+              # Development stub login. `stub_dev_env_login!` only ever
+              # sets the flag in the development environment, so the
+              # route simply does not exist anywhere else -- and a route
+              # that is never drawn cannot be probed.
+              if cfg.stub_dev_env_login_enabled?
                 # Resolve the controller per request instead of capturing
                 # `.action(:stub)` at draw time: the class lives in the
                 # engine's app/ and is reloadable, and stub login runs in
                 # development where a captured constant goes stale on the
                 # first reload. A lambda also sidesteps the module scoping
                 # an isolated engine would apply to a string target.
-                post "#{login_path}/stub",
+                # `login_submit_path` is what the login button posts to,
+                # so drawing the route from it keeps the two in step.
+                post cfg.login_submit_path,
                      to: ->(env) { ::ActiveAdmin::Oidc::Devise::OmniauthCallbacksController.action(:stub).call(env) },
                      as: :"#{scope_name}_stub_login"
               end
