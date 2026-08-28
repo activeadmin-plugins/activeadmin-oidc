@@ -288,8 +288,9 @@ returns `false` there. That is the whole safety story: nothing to flip off
 before a deploy, no boot guard to trip, and no route drawn anywhere else.
 Leave the call uncommented in the initializer if you want.
 
-The block runs once per sign-in, not once at boot, so it can return a different
-identity each time.
+The block runs once per sign-in, not once at boot. To switch between distinct
+users, vary both `sub` and the configured identity claim; changing only the
+email retains `stub-uid` and updates the same `(provider, uid)` row.
 
 ### It is not a separate code path
 
