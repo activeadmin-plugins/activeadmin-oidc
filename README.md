@@ -112,6 +112,10 @@ ActiveAdmin::Oidc.configure do |c|
   # By default PKCE is enabled iff client_secret is blank. Override:
   # c.pkce = true
 
+  # --- Stub login (development only) ------------------------------------
+  # See "Stub login" below. A no-op outside the development environment.
+  # c.stub_dev_env_login!
+
   # --- Authorization hook (REQUIRED) ------------------------------------
   c.on_login = ->(admin_user, claims) {
     # ... see "The on_login hook" below
@@ -136,6 +140,8 @@ end
 | `login_button_label` | `"Sign in with SSO"` | Label on the login-page button |
 | `access_denied_message` | generic | Flash shown on any denial |
 | `on_login` | — (required) | Authorization hook; see below |
+
+`stub_dev_env_login!` is a method, not an option — see "Stub login" below.
 
 ## The `on_login` hook
 
@@ -243,7 +249,100 @@ AdminUser.last.oidc_raw_info
 * Clicking it POSTs to `/admin/auth/oidc` with a Rails CSRF token. The gem loads `omniauth-rails_csrf_protection` so OmniAuth 2.x delegates its authenticity check to Rails' forgery protection and `button_to` just works.
 * After a successful callback the user is signed in and redirected to `/admin` (not the host app's `/`, which may not exist).
 * **Disabled/locked users are rejected.** Devise's `active_for_authentication?` is checked after provisioning but before sign-in. If your model overrides this method (e.g. to check an `enabled` flag or Devise's `:lockable` module), the guard fires on OIDC sign-in too — the user sees an appropriate flash and is redirected to the login page.
+* In development, `stub_dev_env_login!` repoints that same button at a local sign-in that never contacts the IdP — see "Stub login" below.
 * Logout goes through Devise's stock session destroy. No RP-initiated single-logout ping to the IdP — override the destroy action in your host app if you need that.
+
+## Stub login (development)
+
+When OIDC is the only way in, local development gets harder than the feature
+you were trying to build. Some providers accept a `localhost:3000` redirect
+URI — until you need a different port, or a second app that also speaks OIDC on
+the same machine. Registering and juggling those redirect URIs is work that has
+nothing to do with the change you are making.
+
+Stub login is the escape hatch. Turn it on and the login page renders exactly as
+it always does — same button, same label — but the button signs in with locally
+fabricated claims instead of redirecting to the IdP. A red warning sits above
+it while it is on.
+
+```ruby
+ActiveAdmin::Oidc.configure do |c|
+  c.on_login = ->(admin_user, claims) {
+    groups = Array(claims["groups"])
+    return false unless groups.include?(ADMIN_GROUP)
+
+    admin_user.super_admin = groups.include?("super-admins")
+    true
+  }
+
+  # Default claims: { "sub" => "stub-uid", "email" => "stub-dev@example.com" }
+  # The optional block patches or replaces them.
+  c.stub_dev_env_login! do |claims|
+    claims.merge("groups" => [ADMIN_GROUP])
+  end
+end
+```
+
+`stub_dev_env_login!` is a **no-op outside the development environment** and
+returns `false` there. That is the whole safety story: nothing to flip off
+before a deploy, no boot guard to trip, and no route drawn anywhere else.
+Leave the call uncommented in the initializer if you want.
+
+The block runs once per sign-in, not once at boot. To switch between distinct
+users, vary both `sub` and the configured identity claim; changing only the
+email retains `stub-uid` and updates the same `(provider, uid)` row.
+
+### It is not a separate code path
+
+The button POSTs to the gem's own callbacks controller, which hands the claims
+to the **same `UserProvisioner` a real callback uses**. That means identity
+lookup by `(provider, uid)`, the account-takeover guard, your `on_login` hook,
+`oidc_raw_info`, and Devise's `active_for_authentication?` check all still run.
+Authorization you develop against the stub is the authorization you get against
+the IdP.
+
+Three consequences worth internalising:
+
+* **Your `on_login` hook must accept the stub claims.** If it reads
+  `claims["groups"]` or Zitadel's nested roles claim, add them in the block —
+  otherwise the stub is denied, correctly. You will find out the first time you
+  click the button, and fix it once.
+* **Use a made-up email, never your real one.** A stub sign-in writes the fake
+  `sub` onto that row. Your real sign-in later brings the real `sub`, they do not
+  match, and the takeover guard locks you out of that account until someone
+  clears the columns by hand.
+* **`provider` is always `"oidc"`,** never a separate `"stub"`/`"test"` value,
+  so the row a stub sign-in creates is an ordinary OIDC row.
+
+### Limits
+
+* **Development only.** Nothing else enables it.
+* **Devise mounted inside an isolated engine is not supported.** The stub URL is
+  built as `"#{login_path}/stub"`, which does not account for a mount prefix.
+  The real SSO flow is unaffected.
+* **CSRF protection is your app's.** The stub POST does not go through the
+  OmniAuth stack, so it relies on whatever your `ApplicationController` does. If
+  you have set `allow_forgery_protection = false` in `development.rb`, any web
+  page you visit can silently sign you into your local admin panel.
+
+### Hosts with a custom login view
+
+If your app ships its own `app/views/active_admin/devise/sessions/new.html.erb`,
+the engine backs off and your view wins, so you render the button yourself.
+Everything you need is on the config object — no helpers to mix in:
+
+```erb
+<% if ActiveAdmin::Oidc.config.stub_dev_env_login_enabled? %>
+  <p>Stub login is enabled: this button never contacts the identity provider.</p>
+<% end %>
+
+<%= button_to ActiveAdmin::Oidc.config.login_button_label,
+              ActiveAdmin::Oidc.config.login_submit_path,
+              method: :post, data: { turbo: false } %>
+```
+
+`login_submit_path` returns the stub route while stub login is on and the real
+OmniAuth entry point otherwise.
 
 ## Custom login view
 

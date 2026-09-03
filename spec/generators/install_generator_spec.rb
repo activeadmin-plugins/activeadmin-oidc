@@ -134,10 +134,33 @@ RSpec.describe ActiveAdmin::Oidc::Generators::InstallGenerator do
   describe "login view override" do
     before { run_generator }
 
+    let(:published_view) do
+      File.read(
+        File.join(destination_root, "app/views/active_admin/devise/sessions/new.html.erb")
+      )
+    end
+
     it "publishes app/views/active_admin/devise/sessions/new.html.erb" do
       expect(File).to exist(
         File.join(destination_root, "app/views/active_admin/devise/sessions/new.html.erb")
       )
+    end
+
+    # The template is copied verbatim (copy_file, not template), so an
+    # escaped `<%%=` would survive into the host app and render as
+    # literal `<%= ... %>` text on the login page.
+    it "publishes real ERB tags, not generator-escaped ones" do
+      expect(published_view).not_to include("<%%")
+      expect(published_view).to include("<%=")
+    end
+
+    it "includes the stub login block so the dev button still renders" do
+      expect(published_view).to include("stub_dev_env_login_enabled?")
+      expect(published_view).to include("login_submit_path")
+    end
+
+    it "posts through the config rather than a hardcoded path" do
+      expect(published_view).to include("ActiveAdmin::Oidc.config.login_submit_path")
     end
   end
 

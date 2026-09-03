@@ -145,9 +145,12 @@ module ActiveAdmin
         app.config.after_initialize do
           next unless Engine.oidc_enabled?
 
-          cfg         = ActiveAdmin::Oidc.config
-          login_path  = cfg.login_path
-          logout_path = cfg.logout_path
+          # Captured here, not inside the append block: on ActiveAdmin 4
+          # routes are drawn lazily on the first request, long after the
+          # host initializer that set these ran, so a draw-time read can
+          # observe a config that something else has since replaced.
+          login_path  = ActiveAdmin::Oidc.config.login_path
+          logout_path = ActiveAdmin::Oidc.config.logout_path
           scope_name  = Engine.admin_user_class.model_name.singular.to_sym
 
           Engine.session_routes_target(app).append do
@@ -174,6 +177,30 @@ module ActiveAdmin
               logout_via = [*::Devise.sign_out_via, aa_method].compact.uniq
 
               match logout_path, to: ::ActiveAdmin::Devise::SessionsController.action(:destroy), as: :"destroy_#{scope_name}_session", via: logout_via
+
+              # Development stub login. `stub_dev_env_login!` only ever
+              # sets the flag in the development environment, so the
+              # route simply does not exist anywhere else -- and a route
+              # that is never drawn cannot be probed.
+              # Read through `ActiveAdmin::Oidc.config` at draw time rather
+              # than from a captured object: `reset!` swaps the whole
+              # Configuration instance, and a redraw must see the current
+              # one.
+              stub_cfg = ActiveAdmin::Oidc.config
+
+              if stub_cfg.stub_dev_env_login_enabled?
+                # Resolve the controller per request instead of capturing
+                # `.action(:stub)` at draw time: the class lives in the
+                # engine's app/ and is reloadable, and stub login runs in
+                # development where a captured constant goes stale on the
+                # first reload. A lambda also sidesteps the module scoping
+                # an isolated engine would apply to a string target.
+                # `login_submit_path` is what the login button posts to,
+                # so drawing the route from it keeps the two in step.
+                post stub_cfg.login_submit_path,
+                     to: ->(env) { ::ActiveAdmin::Oidc::Devise::OmniauthCallbacksController.action(:stub).call(env) },
+                     as: :"#{scope_name}_stub_login"
+              end
             end
           end
         end
