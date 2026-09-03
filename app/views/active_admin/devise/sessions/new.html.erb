@@ -9,8 +9,7 @@
           active_admin/html_head, which loads the JS that delegates clicks on
           .dark-mode-toggle, so the button needs no script of its own. %>
       <button type="button"
-              class="dark-mode-toggle flex items-center w-9 h-9 justify-center text-gray-400 hover:text-gray-500 dark:text-gray-500 dark:hover:text-gray-400 focus:outline-hidden text-sm"
-              style="margin-inline-start:auto"
+              class="dark-mode-toggle ms-auto flex items-center w-9 h-9 justify-center text-gray-400 hover:text-gray-500 dark:text-gray-500 dark:hover:text-gray-400 focus:outline-hidden text-sm"
               aria-label="<%= t('active_admin.toggle_dark_mode', default: 'Toggle dark mode') %>">
         <svg class="hidden dark:block w-5 h-5 rtl:-scale-x-100" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 18 20"><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.509 5.75c0-1.493.394-2.96 1.144-4.25h-.081a8.5 8.5 0 1 0 7.356 12.746A8.5 8.5 0 0 1 8.509 5.75Z"></path></svg>
         <svg class="dark:hidden w-5 h-5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 20"><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 3V1m0 18v-2M5.05 5.05 3.636 3.636m12.728 12.728L14.95 14.95M3 10H1m18 0h-2M5.05 14.95l-1.414 1.414M16.364 3.636 14.95 5.05M14 10a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z"></path></svg>
@@ -18,9 +17,13 @@
     </div>
 
     <% if ActiveAdmin::Oidc.config.stub_dev_env_login_enabled? %>
-      <p class="activeadmin-oidc-stub-login" style="margin-top:1em;padding:0.75em;border:1px solid rgba(220,38,38,0.7);border-radius:0.375rem;background:rgba(220,38,38,0.12);font-size:0.875rem;font-weight:600">
+      <%# Classes copied from Active Admin's own error flash. The gem's views are
+          outside the host's Tailwind content path, so only utilities Active Admin
+          itself already emits are compiled. %>
+      <div class="activeadmin-oidc-stub-login flex items-center gap-3 p-4 rounded-lg bg-red-50 text-red-800 dark:bg-red-800 dark:text-red-300">
+        <svg class="w-5 h-5 shrink-0 text-red-400 dark:text-red-300" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20"><path d="M10 .5a9.5 9.5 0 1 0 9.5 9.5A9.51 9.51 0 0 0 10 .5ZM10 15a1 1 0 1 1 0-2 1 1 0 0 1 0 2Zm1-4a1 1 0 0 1-2 0V6a1 1 0 0 1 2 0v5Z"/></svg>
         Stub login is enabled: the button below signs in without contacting the identity provider.
-      </p>
+      </div>
     <% end %>
 
     <%= button_to ActiveAdmin::Oidc.config.login_button_label,
@@ -35,7 +38,7 @@
     <h2><%= active_admin_application.site_title(self) %></h2>
 
     <% if ActiveAdmin::Oidc.config.stub_dev_env_login_enabled? %>
-      <p class="activeadmin-oidc-stub-login" style="margin-top:1em;padding:0.75em;border:1px solid rgba(220,38,38,0.7);border-radius:0.375rem;background:rgba(220,38,38,0.12);font-size:0.875rem;font-weight:600">
+      <p class="activeadmin-oidc-stub-login" style="margin-top:1em;padding:0.75em;border:1px solid #c00;background:#fff3f3;color:#900;font-weight:bold">
         Stub login is enabled: the button below signs in without contacting the identity provider.
       </p>
     <% end %>
