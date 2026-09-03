@@ -76,6 +76,27 @@ RSpec.describe "Stub login", type: :request do
       expect(response.body).not_to include(%(action="/admin/auth/oidc"))
       expect(response.body).to include(ActiveAdmin::Oidc.config.login_button_label)
     end
+
+    # Regression: the banner used to carry Tailwind colour utilities that
+    # no host ever compiled, because the gem's views sit outside the
+    # host's Tailwind content path -- it rendered white on white in dark
+    # mode. AA 4 reuses the classes AA's own error flash emits; AA 3 has
+    # no Tailwind and no dark mode, so it styles itself inline.
+    it "styles the warning with something the host's build actually has" do
+      enable_stub_login!
+
+      get "/admin/login"
+
+      if ActiveAdmin::Oidc.aa_v4?
+        expect(response.body).to match(
+          /class="activeadmin-oidc-stub-login[^"]*\bdark:bg-red-800\b/
+        )
+      else
+        expect(response.body).to match(
+          /class="activeadmin-oidc-stub-login"[^>]*style="[^"]*background:/
+        )
+      end
+    end
   end
 
   describe "POST /admin/login/stub" do

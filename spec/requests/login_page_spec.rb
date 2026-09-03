@@ -38,6 +38,29 @@ RSpec.describe "Login page", type: :request do
     expect(response.body).to include(ActiveAdmin::Oidc::Configuration::DEFAULT_LOGIN_BUTTON_LABEL)
   end
 
+  # Active Admin renders its dark mode toggle only in the signed-in top
+  # bar, so the login page carries its own. The logged out layout already
+  # loads the JS that delegates clicks on `.dark-mode-toggle`, so the
+  # markup is the whole feature -- and losing it is silent.
+  describe "the dark mode toggle" do
+    it "renders on AA v4" do
+      skip "AA v3 has no dark mode" unless ActiveAdmin::Oidc.aa_v4?
+
+      get "/admin/login"
+
+      expect(response.body).to include("dark-mode-toggle")
+      expect(response.body).to match(/aria-label="[^"]+"[^>]*>/)
+    end
+
+    it "is not rendered on AA v3" do
+      skip "AA v4 branch renders the toggle" if ActiveAdmin::Oidc.aa_v4?
+
+      get "/admin/login"
+
+      expect(response.body).not_to include("dark-mode-toggle")
+    end
+  end
+
   # Regression: AA v3's formtastic stylesheet targets
   # `#login input[type="submit"]`, so a <button type="submit"> stays
   # unstyled (defaults to the dark browser/AA button). Switching to
