@@ -5,7 +5,7 @@
   <h2><%= active_admin_application.site_title(self) %></h2>
 
   <% if ActiveAdmin::Oidc.config.stub_dev_env_login_enabled? %>
-    <p class="activeadmin-oidc-stub-login" style="margin-top:1em;padding:0.75em;border:1px solid #c00;background:#fff3f3;color:#900;font-weight:bold">
+    <p class="activeadmin-oidc-stub-login" style="margin-top:1em;padding:0.75em;border:1px solid rgba(220,38,38,0.7);border-radius:0.375rem;background:rgba(220,38,38,0.12);font-size:0.875rem;font-weight:600">
       Stub login is enabled: the button below signs in without contacting the identity provider.
     </p>
   <% end %>
