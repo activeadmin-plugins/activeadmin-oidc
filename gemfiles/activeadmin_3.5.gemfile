@@ -14,3 +14,11 @@ gem "omniauth_openid_connect", "~> 0.6.0"
 
 gem "sprockets-rails", ">= 3.4"
 gem "sassc-rails",     ">= 2.1"
+
+# json 3.0 dropped the `quirks_mode` keyword that ActiveSupport::JSON
+# still passes to JSON.parse/JSON.generate (activesupport 7.2 and 8.0,
+# lib/active_support/json/{decoding,encoding}.rb). CI has no lockfile, so
+# it picks up json 3.x and every request spec dies with
+# `ArgumentError: unknown keyword: quirks_mode`. Drop this once Rails
+# ships a version that no longer passes it.
+gem "json", "< 3"

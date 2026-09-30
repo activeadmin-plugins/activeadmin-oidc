@@ -17,3 +17,7 @@ gem "propshaft"
 gem "importmap-rails"
 gem "cssbundling-rails"
 gem "tailwindcss-rails", "~> 4.0"
+
+# See the note in activeadmin_3.5.gemfile: json 3.0 removed the
+# `quirks_mode` keyword ActiveSupport::JSON still passes.
+gem "json", "< 3"
