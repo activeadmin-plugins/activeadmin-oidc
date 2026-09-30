@@ -89,6 +89,13 @@ module ActiveAdmin
         @omniauth_path_prefix || "#{active_admin_namespace_prefix}/auth"
       end
 
+      # Whether the host pinned this itself. The engine needs to tell an
+      # explicit choice apart from the derived default before it decides
+      # whether a host-set `Devise.omniauth_path_prefix` should win.
+      def omniauth_path_prefix_configured?
+        !@omniauth_path_prefix.nil?
+      end
+
       # What Devise declares its OmniAuth request/callback routes with.
       # Devise reuses a single setting for both jobs, and the two differ
       # by exactly the mount prefix when `devise_for` lives inside a
@@ -105,7 +112,11 @@ module ActiveAdmin
         namespace = active_admin_default_namespace
         return nil if namespace.blank? || namespace.to_sym == :root
 
-        namespace.to_sym
+        # `.underscore` to match ActiveAdmin: `Namespace#initialize` does
+        # `name.to_s.underscore`, so `default_namespace = :"admin-panel"`
+        # routes under /admin_panel. Deriving from the raw value would
+        # mount the login page at /admin-panel and 404 after sign-in.
+        namespace.to_s.underscore.to_sym
       end
 
       # Narrow on purpose: `NoMethodError` is what "ActiveAdmin is not
