@@ -1,0 +1,1 @@
+// stub for specs — ActiveAdmin layout references this file

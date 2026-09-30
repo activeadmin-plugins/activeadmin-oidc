@@ -7,7 +7,7 @@ begin
 
   # Default spec suite — boots spec/dummy/ (main-app OIDC-only setup).
   RSpec::Core::RakeTask.new(:spec) do |t|
-    t.exclude_pattern = "spec/{engine,isolated,dummy_engine,dummy_isolated}/**/*"
+    t.exclude_pattern = "spec/{engine,isolated,root,dummy_engine,dummy_isolated,dummy_root}/**/*"
   end
 
   namespace :spec do
@@ -24,8 +24,13 @@ begin
       sh "bundle exec rspec --options /dev/null --require spec_helper -I spec/isolated spec/isolated"
     end
 
-    desc "Run every spec suite (default + engine + isolated)"
-    task all: %i[spec engine isolated]
+    desc "Run root-mounted-ActiveAdmin specs (boots spec/dummy_root/)"
+    task :root do
+      sh "bundle exec rspec --options /dev/null --require spec_helper -I spec/root spec/root"
+    end
+
+    desc "Run every spec suite (default + engine + isolated + root)"
+    task all: %i[spec engine isolated root]
   end
 
   task default: :spec

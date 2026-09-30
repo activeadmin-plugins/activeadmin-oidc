@@ -26,5 +26,14 @@ jobs:
         with:
           ruby-version: ${{ matrix.ruby }}
           bundler-cache: true
-      - name: Run all spec suites (default + engine + isolated)
-        run: bundle exec rake spec:all
+      # One step per dummy app: each boots a different Rails app, so they
+      # cannot share a process — and a separate step names which host
+      # shape broke instead of burying it in a combined run.
+      - name: Default suite (spec/dummy — ActiveAdmin at /admin)
+        run: bundle exec rake spec
+      - name: Engine-mounted Devise suite (spec/dummy_engine)
+        run: bundle exec rake spec:engine
+      - name: Isolated-engine suite (spec/dummy_isolated)
+        run: bundle exec rake spec:isolated
+      - name: Root-mounted suite (spec/dummy_root — ActiveAdmin at /)
+        run: bundle exec rake spec:root
