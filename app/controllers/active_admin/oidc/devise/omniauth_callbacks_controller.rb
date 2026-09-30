@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'devise'
+require 'active_admin/devise'
 
 module ActiveAdmin
   module Oidc
@@ -17,6 +18,9 @@ module ActiveAdmin
       # The action name matches the provider name registered with Devise
       # (`:oidc`, from ActiveAdmin::Oidc::Engine::PROVIDER_NAME).
       class OmniauthCallbacksController < ::Devise::OmniauthCallbacksController
+        # For `#root_path` — ActiveAdmin's namespace-aware landing path.
+        include ::ActiveAdmin::Devise::Controller
+
         def oidc
           auth  = request.env['omniauth.auth'] || {}
           info  = auth['info'] || {}
@@ -105,10 +109,16 @@ module ActiveAdmin
         # sign-in instead of Devise's default (host app root). Hosts
         # that don't define a `/` route would otherwise hit a routing
         # error immediately after login, and even when `/` does exist
-        # it's rarely what an admin user wants to see. ActiveAdmin
-        # always mounts at `/admin`, so we go there directly.
+        # it's rarely what an admin user wants to see.
+        #
+        # `root_path` comes from ActiveAdmin::Devise::Controller and
+        # follows the host's `config.default_namespace`: `/admin` by
+        # default, but `/` for hosts that set `default_namespace = false`
+        # (or `/foo` for a custom namespace). Hardcoding `/admin` 404s on
+        # those hosts whenever Devise has no stored location — i.e. every
+        # sign-in that did not start from a protected page.
         def after_sign_in_path_for(resource)
-          stored_location_for(resource) || '/admin'
+          stored_location_for(resource) || root_path
         end
 
         # Devise's `new_session_path(scope)` is only generated when
