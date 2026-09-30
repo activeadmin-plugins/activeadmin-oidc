@@ -107,12 +107,29 @@ module ActiveAdmin
         # `||=` semantics preserved: a host that set the prefix in its
         # own devise.rb keeps it. Read by Devise when the routes are
         # drawn, which happens later still.
+        host_prefix = ::Devise.omniauth_path_prefix
         ::Devise.omniauth_path_prefix ||= cfg.omniauth_route_prefix
+
+        # Devise's setting decides where the routes are DRAWN; the
+        # strategy's `path_prefix` decides where the middleware LISTENS.
+        # A host that pinned Devise's value but left ours alone meant one
+        # prefix, not two -- following only the derived default there
+        # would put the callback route and the middleware on different
+        # paths, and every sign-in would 404 after the IdP round trip.
+        # An explicit `c.omniauth_path_prefix` still wins, which is what
+        # engine-mounted hosts need: there the two genuinely differ, by
+        # the mount prefix.
+        middleware_prefix =
+          if host_prefix.present? && !cfg.omniauth_path_prefix_configured?
+            host_prefix
+          else
+            cfg.omniauth_path_prefix
+          end
 
         ::Devise.setup do |devise|
           devise.omniauth :openid_connect,
                           name: PROVIDER_NAME,
-                          path_prefix: cfg.omniauth_path_prefix,
+                          path_prefix: middleware_prefix,
                           scope: (cfg.scope || 'openid email profile').split,
                           response_type: :code,
                           issuer: cfg.issuer,

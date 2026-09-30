@@ -201,8 +201,19 @@ RSpec.describe ActiveAdmin::Oidc::Configuration do
 
   describe "#login_submit_path" do
     it "points at the OmniAuth entry point when stub login is off" do
-      expect(config.login_submit_path)
-        .to eq("#{OmniAuth.config.path_prefix}/oidc")
+      # A literal, not `OmniAuth.config.path_prefix`: that global tracks
+      # the same value, so comparing against it passed under the old
+      # implementation too and could not have caught the regression this
+      # example exists for. It also made the example order-dependent --
+      # Devise nils the global on load, and only a booted dummy app
+      # writes it back.
+      config.omniauth_path_prefix = "/sentinel/auth"
+
+      expect(config.login_submit_path).to eq("/sentinel/auth/oidc")
+    end
+
+    it "derives the entry point from ActiveAdmin's namespace by default" do
+      expect(config.login_submit_path).to eq("/admin/auth/oidc")
     end
 
     it "points at the stub route, derived from login_path, when stub login is on" do
@@ -284,6 +295,41 @@ RSpec.describe ActiveAdmin::Oidc::Configuration do
       expect(config.login_path).to eq("/admin/login")
       expect(config.logout_path).to eq("/admin/logout")
       expect(config.omniauth_path_prefix).to eq("/admin/auth")
+    end
+  end
+
+  describe "#active_admin_namespace" do
+    # ActiveAdmin::Namespace#initialize does `name.to_s.underscore`, so
+    # every path it draws is underscored. Deriving from the raw value
+    # would put the login page somewhere ActiveAdmin never routed.
+    it "underscores the namespace the way ActiveAdmin does" do
+      allow(ActiveAdmin.application).to receive(:default_namespace).and_return(:"admin-panel")
+
+      expect(config.active_admin_namespace).to eq(:admin_panel)
+      expect(config.login_path).to eq("/admin_panel/login")
+      expect(config.omniauth_path_prefix).to eq("/admin_panel/auth")
+    end
+
+    it "underscores a CamelCase namespace too" do
+      allow(ActiveAdmin.application).to receive(:default_namespace).and_return(:AdminPanel)
+
+      expect(config.active_admin_namespace).to eq(:admin_panel)
+    end
+  end
+
+  describe "#omniauth_path_prefix_configured?" do
+    # The engine reads this to tell a host that pinned
+    # `Devise.omniauth_path_prefix` (and meant one prefix) apart from a
+    # host that pinned ours too (and meant two). Getting it wrong draws
+    # the callback route and the middleware on different paths.
+    it "is false while the prefix is only derived" do
+      expect(config.omniauth_path_prefix_configured?).to be(false)
+    end
+
+    it "is true once the host assigns one" do
+      config.omniauth_path_prefix = "/sso/auth"
+
+      expect(config.omniauth_path_prefix_configured?).to be(true)
     end
   end
 
