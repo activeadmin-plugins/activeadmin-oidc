@@ -47,7 +47,7 @@ RSpec.describe "OIDC callback: disabled user not persisted", type: :request do
   after { OmniAuth.config.mock_auth[:oidc] = nil }
 
   def post_callback
-    post "#{OmniAuth.config.path_prefix}/oidc"
+    post "#{ActiveAdmin::Oidc.config.omniauth_path_prefix}/oidc"
     follow_redirect! if response.redirect?
   end
 
