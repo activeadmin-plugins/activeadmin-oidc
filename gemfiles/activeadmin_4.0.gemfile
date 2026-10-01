@@ -8,10 +8,7 @@ gemspec path: ".."
 # the Sprockets/Sassc pipeline with Propshaft + importmap + cssbundling +
 # Tailwind, so the asset gems differ entirely from the 3.5 gemfile.
 gem "activeadmin", ">= 4.0.0.beta", "< 5"
-# Blocked on Rails 8.1: railties 8.1 calls `delegate_missing_to` in
-# Rails::Initializable::Collection without requiring the ActiveSupport
-# core ext, so this gem's `require "rails/railtie"` raises NoMethodError.
-gem "rails",       "~> 8.0.0"
+gem "rails",       "~> 8.1.0"
 
 # openid_connect 2.x line (faraday 2.x).
 gem "omniauth_openid_connect", "~> 0.8.0"
