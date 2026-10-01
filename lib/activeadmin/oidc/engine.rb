@@ -119,17 +119,17 @@ module ActiveAdmin
         # An explicit `c.omniauth_path_prefix` still wins, which is what
         # engine-mounted hosts need: there the two genuinely differ, by
         # the mount prefix.
-        middleware_prefix =
-          if host_prefix.present? && !cfg.omniauth_path_prefix_configured?
-            host_prefix
-          else
-            cfg.omniauth_path_prefix
-          end
+        #
+        # Written back to the config rather than kept local: the login
+        # view posts to `login_submit_path`, which reads the same value.
+        if host_prefix.present? && !cfg.omniauth_path_prefix_configured?
+          cfg.omniauth_path_prefix = host_prefix
+        end
 
         ::Devise.setup do |devise|
           devise.omniauth :openid_connect,
                           name: PROVIDER_NAME,
-                          path_prefix: middleware_prefix,
+                          path_prefix: cfg.omniauth_path_prefix,
                           scope: (cfg.scope || 'openid email profile').split,
                           response_type: :code,
                           issuer: cfg.issuer,
