@@ -18,6 +18,17 @@ require "active_admin/version"
 # at file load, so pull in the minimal Railtie base class first — this
 # keeps the require safe even in spec_helper contexts where the full
 # Rails stack hasn't been initialized yet.
+#
+# The delegation core ext has to come first. railties 8.1's
+# `rails/initializable.rb` calls `delegate_missing_to` in the body of
+# `Rails::Initializable::Collection` but only requires "tsort", and
+# `rails/railtie.rb` requires `rails/initializable` before any
+# ActiveSupport core ext. So on Rails 8.1 a bare `require
+# "rails/railtie"` raises `NoMethodError: undefined method
+# 'delegate_missing_to'`. Requiring the one core ext it needs keeps the
+# intent above intact — we still load only the minimal Railtie base
+# class, not all of Rails.
+require "active_support/core_ext/module/delegation"
 require "rails/railtie"
 require "omniauth/rails_csrf_protection"
 
