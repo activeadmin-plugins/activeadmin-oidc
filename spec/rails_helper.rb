@@ -14,6 +14,24 @@ require "webmock/rspec"
 ActiveRecord::Schema.verbose = false
 load File.expand_path("dummy/db/schema.rb", __dir__)
 
+# Draw the routes once, up front, and leave them marked as loaded.
+#
+# Rails 8 loads routes lazily in test, so without this the draw happens
+# whenever the first example touches the route set -- and it inherits
+# whatever stubs that example has installed. An example that stubs
+# `ActiveAdmin.application.default_namespace` and then reads
+# `Devise.mappings` (which calls `reload_routes_unless_loaded` internally)
+# would draw the whole app under the stubbed namespace and leak that route
+# set into every later example. That is what made the suite depend on the
+# random seed.
+#
+# `reload_routes!` is deliberately NOT used here: on a not-yet-loaded app
+# it draws the routes and then resets the loaded flag back to false, so
+# the next `Devise.mappings` call would redraw them anyway. `try` keeps
+# this working on Rails 7.2, which has no lazy route loading and no such
+# method -- the same call Devise itself makes.
+Rails.application.try(:reload_routes_unless_loaded)
+
 RSpec.configure do |config|
   config.use_transactional_fixtures = true
   config.infer_spec_type_from_file_location!
