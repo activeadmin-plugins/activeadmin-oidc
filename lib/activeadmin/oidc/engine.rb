@@ -111,20 +111,9 @@ module ActiveAdmin
         ::Devise.omniauth_path_prefix ||= cfg.omniauth_route_prefix
 
         # Devise's setting decides where the routes are DRAWN; the
-        # strategy's `path_prefix` decides where the middleware LISTENS.
-        # A host that pinned Devise's value but left ours alone meant one
-        # prefix, not two -- following only the derived default there
-        # would put the callback route and the middleware on different
-        # paths, and every sign-in would 404 after the IdP round trip.
-        # An explicit `c.omniauth_path_prefix` still wins, which is what
-        # engine-mounted hosts need: there the two genuinely differ, by
-        # the mount prefix.
-        #
-        # Written back to the config rather than kept local: the login
-        # view posts to `login_submit_path`, which reads the same value.
-        if host_prefix.present? && !cfg.omniauth_path_prefix_configured?
-          cfg.omniauth_path_prefix = host_prefix
-        end
+        # strategy's `path_prefix` decides where the middleware LISTENS,
+        # and the login view posts to it. If they differ, sign-in 404s.
+        cfg.adopt_devise_omniauth_path_prefix(host_prefix)
 
         ::Devise.setup do |devise|
           devise.omniauth :openid_connect,

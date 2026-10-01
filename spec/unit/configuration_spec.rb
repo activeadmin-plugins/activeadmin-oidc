@@ -317,19 +317,28 @@ RSpec.describe ActiveAdmin::Oidc::Configuration do
     end
   end
 
-  describe "#omniauth_path_prefix_configured?" do
-    # The engine reads this to tell a host that pinned
-    # `Devise.omniauth_path_prefix` (and meant one prefix) apart from a
-    # host that pinned ours too (and meant two). Getting it wrong draws
-    # the callback route and the middleware on different paths.
-    it "is false while the prefix is only derived" do
-      expect(config.omniauth_path_prefix_configured?).to be(false)
+  describe "#adopt_devise_omniauth_path_prefix" do
+    # The engine passes a host-set `Devise.omniauth_path_prefix` here.
+    # Getting it wrong draws the callback route and the middleware on
+    # different paths.
+    it "adopts the host's prefix while ours is only derived" do
+      config.adopt_devise_omniauth_path_prefix("/sso/auth")
+
+      expect(config.omniauth_path_prefix).to eq("/sso/auth")
+      expect(config.login_submit_path).to eq("/sso/auth/oidc")
     end
 
-    it "is true once the host assigns one" do
-      config.omniauth_path_prefix = "/sso/auth"
+    it "keeps an explicit prefix" do
+      config.omniauth_path_prefix = "/admin/auth"
+      config.adopt_devise_omniauth_path_prefix("/auth")
 
-      expect(config.omniauth_path_prefix_configured?).to be(true)
+      expect(config.omniauth_path_prefix).to eq("/admin/auth")
+    end
+
+    it "keeps the derived default when Devise has no prefix" do
+      config.adopt_devise_omniauth_path_prefix(nil)
+
+      expect(config.omniauth_path_prefix).to eq("/admin/auth")
     end
   end
 

@@ -89,11 +89,12 @@ module ActiveAdmin
         @omniauth_path_prefix || "#{active_admin_namespace_prefix}/auth"
       end
 
-      # Whether the host pinned this itself. The engine needs to tell an
-      # explicit choice apart from the derived default before it decides
-      # whether a host-set `Devise.omniauth_path_prefix` should win.
-      def omniauth_path_prefix_configured?
-        !@omniauth_path_prefix.nil?
+      # A host that set only `Devise.omniauth_path_prefix` meant one
+      # prefix, so it becomes ours too. An explicit value set here still
+      # wins: engine-mounted hosts need the two to differ by the mount
+      # prefix.
+      def adopt_devise_omniauth_path_prefix(prefix)
+        @omniauth_path_prefix ||= prefix.presence
       end
 
       # What Devise declares its OmniAuth request/callback routes with.
