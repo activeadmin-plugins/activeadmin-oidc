@@ -13,29 +13,19 @@ RSpec.describe "Security posture", type: :request do
     # out of the Rails log is a liability — a crash mid-callback will
     # dump the whole params hash (including `code`, `id_token`,
     # `access_token`, `refresh_token`) straight into production logs.
-    #
-    # Note: once Rails has served a request, filter_parameters is
-    # compiled into a single combined regex (e.g.
-    #   "(?-mix:(?i:code)|(?i:id_token)|(?i:access_token)|...)"
-    # ), so we stringify the collection and look for each key in it
-    # rather than asserting on discrete symbol entries.
-    it "includes the OIDC token/code/state/nonce keys so they never end up in Rails logs" do
-      filters_str = Rails.application.config.filter_parameters.map(&:to_s).join(" ")
+    let(:oidc_keys) { %w[code code_verifier state session_state nonce id_token access_token refresh_token] }
+    let(:host_params) { { "code_id" => "1", "state_eq" => "2", "order" => { "state" => "shipped", "code" => "X" } } }
 
-      %w[code id_token access_token refresh_token state nonce].each do |key|
-        expect(filters_str).to include(key),
-          "expected filter_parameters to filter #{key.inspect}, got: #{filters_str}"
+    [
+      ["raw", ->(filters) { filters }],
+      ["precompiled", ->(filters) { ActiveSupport::ParameterFilter.precompile_filters(filters) }]
+    ].each do |form, compile|
+      it "filters the top-level OIDC keys and leaves host params visible (#{form} filters)" do
+        filter = ActiveSupport::ParameterFilter.new(compile.call(Rails.application.config.filter_parameters))
+        result = filter.filter(oidc_keys.index_with("secret").merge(host_params))
+
+        expect(result).to eq(oidc_keys.index_with("[FILTERED]").merge(host_params))
       end
-    end
-
-    it "matches keys exactly, so host params like code_id and state_eq are not filtered" do
-      filter = ActiveSupport::ParameterFilter.new(Rails.application.config.filter_parameters)
-      result = filter.filter("code" => "a", "state" => "b", "code_id" => "1", "state_eq" => "2",
-                             "nested" => { "code" => "c" })
-
-      expect(result).to include("code" => "[FILTERED]", "state" => "[FILTERED]",
-                                "code_id" => "1", "state_eq" => "2")
-      expect(result["nested"]).to eq("code" => "[FILTERED]")
     end
   end
 
