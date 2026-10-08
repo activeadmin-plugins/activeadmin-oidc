@@ -136,7 +136,9 @@ module ActiveAdmin
       end
 
       initializer 'activeadmin_oidc.filter_parameters' do |app|
-        app.config.filter_parameters |= %i[code id_token access_token refresh_token state nonce]
+        # Anchored: a symbol matches as a substring, so :code would also hide a host's code_id.
+        oidc_params = %w[code state nonce id_token access_token refresh_token]
+        app.config.filter_parameters |= oidc_params.map { |key| /\A#{key}\z/i }
       end
 
       # The gem is OIDC-first: mount our SSO landing page at /admin/login

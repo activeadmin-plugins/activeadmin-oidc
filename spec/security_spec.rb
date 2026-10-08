@@ -27,6 +27,16 @@ RSpec.describe "Security posture", type: :request do
           "expected filter_parameters to filter #{key.inspect}, got: #{filters_str}"
       end
     end
+
+    it "matches keys exactly, so host params like code_id and state_eq are not filtered" do
+      filter = ActiveSupport::ParameterFilter.new(Rails.application.config.filter_parameters)
+      result = filter.filter("code" => "a", "state" => "b", "code_id" => "1", "state_eq" => "2",
+                             "nested" => { "code" => "c" })
+
+      expect(result).to include("code" => "[FILTERED]", "state" => "[FILTERED]",
+                                "code_id" => "1", "state_eq" => "2")
+      expect(result["nested"]).to eq("code" => "[FILTERED]")
+    end
   end
 
   describe "oidc_raw_info persistence" do
