@@ -2,6 +2,6 @@
 
 module ActiveAdmin
   module Oidc
-    VERSION = "3.0.0"
+    VERSION = "3.0.1"
   end
 end
