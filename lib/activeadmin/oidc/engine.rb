@@ -137,9 +137,13 @@ module ActiveAdmin
 
       initializer 'activeadmin_oidc.filter_parameters' do |app|
         # ActiveSupport::ParameterFilter matches a regexp containing "\." against the dotted
-        # full key (order.state), so this hides only top-level keys, where the IdP callback puts them.
-        oidc_params = %w[code code_verifier state session_state nonce id_token access_token refresh_token]
-        app.config.filter_parameters |= [/\A(?!.*\.)(?:#{Regexp.union(oidc_params).source})\z/i]
+        # full key (data.attributes.state), so the generic callback names stay visible when nested.
+        callback_params = %w[code state session_state nonce]
+        token_params = %w[code_verifier id_token access_token refresh_token]
+        app.config.filter_parameters |= [
+          /\A(?!.*\.)(?:#{Regexp.union(callback_params).source})\z/i,
+          /\A(?:#{Regexp.union(token_params).source})\z/i
+        ]
       end
 
       # The gem is OIDC-first: mount our SSO landing page at /admin/login
