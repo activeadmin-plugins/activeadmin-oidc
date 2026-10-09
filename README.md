@@ -83,7 +83,7 @@ The gem's Rails engine handles several things so host apps don't have to:
 * **Login view override** — the engine prepends an SSO-only login page (no email/password fields) to the sessions controller's view path. If your host app ships its own `app/views/active_admin/devise/sessions/new.html.erb`, the gem detects it and backs off — your view wins.
 * **Session routes** — the engine mounts `GET /admin/login` (renders the SSO landing page) and `DELETE /admin/logout` under `devise_scope`, with the scope name derived from `config.admin_user_class`. Devise normally generates session routes as a side effect of `:database_authenticatable`; without that module the route helpers would not exist and ActiveAdmin's login redirect would 404.
 * **Path prefix** — the engine registers the strategy with `path_prefix: '/admin/auth'` so the middleware intercepts requests under ActiveAdmin's mount point, and sets `Devise.omniauth_path_prefix` to the prefix Devise declares its routes with. Compatible with Rails 7.2+ and Rails 8's lazy route loading.
-* **Parameter filtering** — `code`, `id_token`, `access_token`, `refresh_token`, `state`, and `nonce` are added to `Rails.application.config.filter_parameters`.
+* **Parameter filtering** — the OIDC keys are added to `Rails.application.config.filter_parameters` as exact-key matches. `code_verifier`, `id_token`, `access_token` and `refresh_token` are filtered at any depth. The generic `code`, `state`, `session_state` and `nonce` are filtered only as top-level params, where the callback sends them, so host params like `code_id`, `state_eq` or `order[state]` stay visible.
 
 ## Configuration
 
@@ -410,7 +410,7 @@ The gem also adds a unique `(provider, uid)` partial index in its own install mi
 
 ### What's filtered from logs
 
-The engine merges `code`, `id_token`, `access_token`, `refresh_token`, `state`, and `nonce` into `Rails.application.config.filter_parameters` so a mid-callback crash can't dump them into production logs. Your own `filter_parameters` entries are preserved.
+The engine adds the OIDC keys to `Rails.application.config.filter_parameters`, so a mid-callback crash can't dump them into production logs. Keys are matched exactly. `code_verifier`, `id_token`, `access_token` and `refresh_token` are filtered at any depth; `code`, `state`, `session_state` and `nonce` only as top-level params. So `code_id`, `state_eq` and nested params like `order[state]` are not filtered. Your own `filter_parameters` entries are preserved.
 
 ## Logger
 
